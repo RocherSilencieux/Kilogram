@@ -244,7 +244,7 @@ router.delete(
 function fetch_user(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
 
-  prisma.user.findUnique({ where: { id } }).then((user) => {
+  prisma.user.findUnique({ where: { id }, select:{id: true, username: true, email: true, role: true, createdAt: true} }).then((user) => {
     res.json(user);
   });
 }

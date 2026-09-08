@@ -4,9 +4,35 @@ import bcrypt from "bcryptjs";
 import multer from "multer";
 import path from "path";
 import { authenticate, generateToken } from "./auth";
+import crypto from "crypto";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
 
 const router = Router();
 const prisma = new PrismaClient();
+
+//ad rateLimit for limit the number of requests per IP address
+const authLimiter = rateLimit({
+
+  windowMs: 15 * 60 * 1000, 
+
+  max: 10, 
+
+  message: { error: "Too many attempts; please try again later." }
+
+});
+
+//ad zod for validate each incoming data schema
+const registerSchema = z.object({
+
+  email: z.string().email(),
+
+  username: z.string().min(3).max(30),
+
+  password: z.string().min(8),
+
+});
+
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -16,16 +42,57 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${file.originalname}`);
   },
 });
-const upload = multer({ storage });
+
+const upload = multer({
+
+  storage: multer.diskStorage({
+
+    destination: (req, file, cb) => cb(null, path.join(__dirname, "..", "uploads")),
+
+    filename: (req, file, cb) => {
+
+      const ext = path.extname(file.originalname).toLowerCase();
+
+      //random id secure UUID with crypto
+      cb(null, `${crypto.randomUUID()}${ext}`);
+
+    },
+
+  }),
+
+  //add limit size
+  limits: { fileSize: 5 * 1024 * 1024 }, 
+
+  //Files Filter authorize
+  fileFilter: (req, file, cb) => {
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+
+    cb(null, allowed.includes(file.mimetype));
+
+  },
+
+});
+
+
 
 // ==================== AUTH ====================
 
-router.post("/auth/register", async (req: Request, res: Response) => {
-  const { email, username, password } = req.body;
+//call authLimiter and zod for validate register
+router.post("/auth/register", authLimiter, async (req: Request, res: Response) => {
 
+
+  const validation = registerSchema.safeParse(req.body);
+
+  if (!validation.success) {
+    return res.status(400).json({ error: "invalid data", details: validation.error.format() });
+  }
+
+  const { email, username, password } = validation.data;
+  
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return res.status(200).json({ error: "Email already used" });
+    return res.status(400).json({ error: "Email déjà utilisé" });
   }
 
   const hashed = bcrypt.hashSync(password, 10);
@@ -45,7 +112,8 @@ router.post("/auth/register", async (req: Request, res: Response) => {
   });
 });
 
-router.post("/auth/login", (req: Request, res: Response) => {
+//call authLimiter
+router.post("/auth/login", authLimiter, (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   prisma.user
@@ -129,9 +197,9 @@ async function getPostById(req: Request<{ id: string }>, res: Response) {
   const post = await prisma.post.findUnique({
     where: { id },
     include: {
-      author: true,
+      author: { select: { id: true, username: true } },
       comments: {
-        include: { author: true },
+        include: { author: { select: { id: true, username: true } } },
         orderBy: { createdAt: "asc" },
       },
     },
@@ -150,13 +218,23 @@ async function getPostById(req: Request<{ id: string }>, res: Response) {
   });
 }
 
+//Access control (IDOR) in deletions
 async function deletePost(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
+  const userId = (req as any).userId;
+  const userRole = (req as any).userRole;
+
+  const post = await prisma.post.findUnique({ where: { id } });
+  if (!post) return res.status(404).json({ error: "Post non trouvé" });
+
+  if (post.authorId !== userId && userRole !== "ADMIN") {
+    return res.status(403).json({ error: "Non autorisé" });
+  }
 
   await prisma.post.delete({ where: { id } });
-
   res.json({ success: true });
 }
+
 
 router.get("/posts", getPosts);
 router.post("/posts", authenticate, upload.single("image"), handleCreatePost);
@@ -191,9 +269,14 @@ router.delete(
   authenticate,
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-
+    const userId = (req as any).userId;
+    const userRole = (req as any).userRole;
+    const comment = await prisma.comment.findUnique({ where: { id } });
+    if (!comment) return res.status(404).json({ error: "Comment not found" });
+    if (comment.authorId !== userId && userRole !== "ADMIN") {
+      return res.status(403).json({ error: "Not authorized" });
+    }
     await prisma.comment.delete({ where: { id } });
-
     res.json({ success: true });
   }
 );

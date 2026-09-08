@@ -5,7 +5,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 // generate a token for a user, no expiration
 export function generateToken(userId: string, role: string): string {
-  return jwt.sign({ userId, role }, JWT_SECRET);
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {

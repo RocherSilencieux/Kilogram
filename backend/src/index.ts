@@ -14,7 +14,8 @@ if (!fs.existsSync(uploadsDir)) {
 
 const app = express();
 
-app.use(cors());
+//Restrict CORS to the frontend domain
+app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 app.use("/uploads", express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, "..", "public")));

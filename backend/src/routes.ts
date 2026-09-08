@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import multer from "multer";
 import path from "path";
 import { authenticate, generateToken } from "./auth";
+import { request } from "http";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -149,9 +150,17 @@ async function getPostById(req: Request<{ id: string }>, res: Response) {
     likeCount,
   });
 }
-
+ //added verification to make sure the user that tries to delete the post is the post's owner or an admin
 async function deletePost(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
+  const post = await prisma.post.findUnique({where: {id}})
+
+  if(!post) {
+    return res.status(404).json({error: "Post not found"})
+  }
+  if (post.authorId !== (req as any).userId && (req as any).userRole !== "ADMIN"){
+    return res.status(403).json({error: "Unauthorized action"})
+  }
 
   await prisma.post.delete({ where: { id } });
 
@@ -241,10 +250,18 @@ router.delete(
 // ==================== USERS ====================
 
 // fetch a user by id
+// selected only usefull information and got rid of sensible information like the hashed password
 function fetch_user(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
 
-  prisma.user.findUnique({ where: { id }, select:{id: true, username: true, email: true, role: true, createdAt: true} }).then((user) => {
+  prisma.user.findUnique({ where: { id },
+     select:{
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      createdAt: true
+      } }).then((user) => {
     res.json(user);
   });
 }

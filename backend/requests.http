@@ -1,0 +1,67 @@
+@baseUrl = http://localhost:3000
+@token = REPLACE_ME_AFTER_LOGIN
+
+### Register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@test.com",
+  "username": "tester",
+  "password": "password123"
+}
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "alice@test.com",
+  "password": "password123"
+}
+
+### Get feed
+GET {{baseUrl}}/posts
+
+### Get single post
+GET {{baseUrl}}/posts/REPLACE_ME
+
+### Create post
+POST {{baseUrl}}/posts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Hello world"
+}
+
+### Delete post
+DELETE {{baseUrl}}/posts/REPLACE_ME
+Authorization: Bearer {{token}}
+
+### Add comment
+POST {{baseUrl}}/posts/REPLACE_ME/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "content": "Nice post!"
+}
+
+### Delete comment
+DELETE {{baseUrl}}/comments/REPLACE_ME
+Authorization: Bearer {{token}}
+
+### Like post
+POST {{baseUrl}}/posts/REPLACE_ME/like
+Authorization: Bearer {{token}}
+
+### Unlike post
+DELETE {{baseUrl}}/posts/REPLACE_ME/like
+Authorization: Bearer {{token}}
+
+### Get user
+GET {{baseUrl}}/users/REPLACE_ME
+
+### Get user posts
+GET {{baseUrl}}/users/REPLACE_ME/posts

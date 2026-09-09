@@ -7,6 +7,7 @@ import { authenticate, generateToken } from "./auth";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
+import { request } from "http";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -176,7 +177,7 @@ async function getPosts(req: Request, res: Response) {
 
 async function handleCreatePost(req: Request, res: Response) {
   const { content } = req.body;
-  const userId = (req as any).userId;
+  const userId = req.userId;
 
   const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -218,17 +219,15 @@ async function getPostById(req: Request<{ id: string }>, res: Response) {
   });
 }
 
-//Access control (IDOR) in deletions
 async function deletePost(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
-  const userId = (req as any).userId;
-  const userRole = (req as any).userRole;
+  const post = await prisma.post.findUnique({where: {id}})
 
-  const post = await prisma.post.findUnique({ where: { id } });
-  if (!post) return res.status(404).json({ error: "Post non trouvé" });
-
-  if (post.authorId !== userId && userRole !== "ADMIN") {
-    return res.status(403).json({ error: "Non autorisé" });
+  if(!post) {
+    return res.status(404).json({error: "Post not found"})
+  }
+  if (post.authorId !== req.userId && req.userRole !== "ADMIN"){
+    return res.status(403).json({error: "Unauthorized action"})
   }
 
   await prisma.post.delete({ where: { id } });
@@ -249,7 +248,7 @@ router.post(
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     const { content } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const comment = await prisma.comment.create({
       data: {
@@ -288,7 +287,7 @@ router.post(
   authenticate,
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const like = await prisma.like.create({
       data: {
@@ -306,7 +305,7 @@ router.delete(
   authenticate,
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const like = await prisma.like.findFirst({
       where: { postId: id, userId },
@@ -324,10 +323,18 @@ router.delete(
 // ==================== USERS ====================
 
 // fetch a user by id
+// selected only usefull information and got rid of sensible information like the hashed password
 function fetch_user(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
 
-  prisma.user.findUnique({ where: { id }, select:{id: true, username: true, email: true, role: true, createdAt: true} }).then((user) => {
+  prisma.user.findUnique({ where: { id },
+     select:{
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      createdAt: true
+      } }).then((user) => {
     res.json(user);
   });
 }

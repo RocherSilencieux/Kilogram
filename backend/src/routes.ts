@@ -109,7 +109,7 @@ async function getPosts(req: Request, res: Response) {
 
 async function handleCreatePost(req: Request, res: Response) {
   const { content } = req.body;
-  const userId = (req as any).userId;
+  const userId = req.userId;
 
   const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
@@ -158,7 +158,7 @@ async function deletePost(req: Request<{ id: string }>, res: Response) {
   if(!post) {
     return res.status(404).json({error: "Post not found"})
   }
-  if (post.authorId !== (req as any).userId && (req as any).userRole !== "ADMIN"){
+  if (post.authorId !== req.userId && (req as any).userRole !== "ADMIN"){
     return res.status(403).json({error: "Unauthorized action"})
   }
 
@@ -180,7 +180,7 @@ router.post(
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
     const { content } = req.body;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const comment = await prisma.comment.create({
       data: {
@@ -214,7 +214,7 @@ router.post(
   authenticate,
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const like = await prisma.like.create({
       data: {
@@ -232,7 +232,7 @@ router.delete(
   authenticate,
   async (req: Request<{ id: string }>, res: Response) => {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.userId;
 
     const like = await prisma.like.findFirst({
       where: { postId: id, userId },

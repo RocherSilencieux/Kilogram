@@ -277,6 +277,9 @@ export default function PostsPages() {
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
+                if (res.status === 401) {
+                    throw new Error("Vous devez être connecté pour publier un post (Token JWT manquant ou expiré).");
+                }
                 throw new Error(errData.error || `Erreur serveur (${res.status}) lors de la publication`);
             }
 

@@ -62,6 +62,10 @@ function formatDateFull(dateStr: string): string {
     });
 }
 
+const MAX_CONTENT_LENGTH = 280;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB max
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
 export default function PostsPages() {
     // Liste totale de tous les posts récupérés (triée décroissant)
     const [allPosts, setAllPosts] = useState<Post[]>([]);
@@ -78,7 +82,12 @@ export default function PostsPages() {
     // Formulaire de création de post
     const [content, setContent] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [fileError, setFileError] = useState<string | null>(null);
+    const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Sentinelle pour le lazy loading automatique avec IntersectionObserver
     const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -183,15 +192,75 @@ export default function PostsPages() {
         };
     }, [hasMore, loadingMore, loading, loadNextPage]);
 
+    // Gestion du choix de fichier image avec validations de taille et format
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setFileError(null);
+        setSubmitError(null);
+
+        if (!file) {
+            if (imagePreview) URL.revokeObjectURL(imagePreview);
+            setImageFile(null);
+            setImagePreview(null);
+            return;
+        }
+
+        // 1. Contrôle du format d'image côté front
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            setFileError("Format non supporté. Seules les images JPG, PNG, WEBP et GIF sont acceptées.");
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+        }
+
+        // 2. Contrôle de la taille du fichier côté front (max 5 Mo)
+        if (file.size > MAX_FILE_SIZE) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            setFileError(`Image trop lourde (${sizeMB} Mo). La taille maximale autorisée est de 5 Mo.`);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+            return;
+        }
+
+        // 3. Génération de la prévisualisation d'image
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+        const previewUrl = URL.createObjectURL(file);
+        setImageFile(file);
+        setImagePreview(previewUrl);
+    };
+
+    // Suppression de la photo sélectionnée
+    const handleRemoveImage = () => {
+        if (imagePreview) URL.revokeObjectURL(imagePreview);
+        setImageFile(null);
+        setImagePreview(null);
+        setFileError(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
     // 4. Publication d'un post (Multipart form-data)
     const handleCreatePost = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!content.trim() && !imageFile) return;
+        setSubmitError(null);
+
+        const trimmedContent = content.trim();
+
+        // Validation contenu non vide
+        if (!trimmedContent) {
+            setSubmitError("Le contenu du message ne peut pas être vide.");
+            return;
+        }
+
+        // Validation de la longueur maximale
+        if (content.length > MAX_CONTENT_LENGTH) {
+            setSubmitError(`Le texte dépasse la limite autorisée de ${MAX_CONTENT_LENGTH} caractères.`);
+            return;
+        }
+
+        if (fileError) return;
 
         try {
             setSubmitting(true);
             const formData = new FormData();
-            formData.append("content", content);
+            formData.append("content", trimmedContent);
             if (imageFile) {
                 formData.append("image", imageFile);
             }
@@ -208,19 +277,26 @@ export default function PostsPages() {
 
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || "Échec de la publication");
+                throw new Error(errData.error || `Erreur serveur (${res.status}) lors de la publication`);
             }
 
             const newPost: Post = await res.json();
 
-            // Insère immédiatement le post au sommet avec tri décroissant sans clignoter
+            // Insère immédiatement le post au sommet avec tri décroissant sans rechargement
             setAllPosts((prev) => sortPostsDescending([newPost, ...prev]));
             setDisplayedPosts((prev) => [newPost, ...prev]);
 
+            // Réinitialisation du formulaire uniquement en cas de succès
             setContent("");
+            if (imagePreview) URL.revokeObjectURL(imagePreview);
             setImageFile(null);
+            setImagePreview(null);
+            setFileError(null);
+            setSubmitError(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
         } catch (err: any) {
-            alert(err.message || "Erreur lors de la création du post");
+            // En cas d'échec : Le contenu et la sélection d'image restent conservés dans le formulaire !
+            setSubmitError(err.message || "Erreur lors de la création de la publication");
         } finally {
             setSubmitting(false);
         }
@@ -279,36 +355,137 @@ export default function PostsPages() {
                 </button>
             </header>
 
-            {/* Formulaire nouveau post */}
+            {/* Formulaire nouveau post (S4) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-5 mb-8 transition hover:border-gray-300">
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">Créer une publication</h2>
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                        <span>✏️</span>
+                        <span>Créer une publication</span>
+                    </h2>
+                    {/* Compteur dynamique de caractères */}
+                    <span
+                        className={`text-xs font-mono font-medium ${
+                            content.length > MAX_CONTENT_LENGTH
+                                ? "text-red-500 font-bold"
+                                : content.length > MAX_CONTENT_LENGTH * 0.8
+                                ? "text-amber-500"
+                                : "text-gray-400"
+                        }`}
+                    >
+                        {content.length} / {MAX_CONTENT_LENGTH}
+                    </span>
+                </div>
+
+                {/* Affichage des erreurs API ou de fichier (Formulaire non perdu) */}
+                {(submitError || fileError) && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
+                        <div className="flex items-start gap-2">
+                            <span>⚠️</span>
+                            <span>{submitError || fileError}</span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSubmitError(null);
+                                setFileError(null);
+                            }}
+                            className="text-red-500 hover:text-red-700 font-bold text-sm leading-none"
+                            title="Fermer le message d'erreur"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
+
                 <form onSubmit={handleCreatePost} className="space-y-4">
-                    <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        placeholder="Quoi de neuf aujourd'hui ?"
-                        rows={3}
-                        className="w-full resize-none p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 text-sm placeholder-gray-400 bg-gray-50/50 focus:bg-white transition"
-                    />
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                        <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 hover:text-purple-600 transition">
-                            <span className="p-1.5 bg-gray-100 rounded-lg">📷</span>
-                            <span className="truncate max-w-[200px]">
-                                {imageFile ? imageFile.name : "Ajouter une photo"}
+                    <div>
+                        <textarea
+                            value={content}
+                            onChange={(e) => {
+                                setContent(e.target.value);
+                                if (submitError) setSubmitError(null);
+                            }}
+                            placeholder="Quoi de neuf aujourd'hui ?"
+                            rows={3}
+                            disabled={submitting}
+                            className={`w-full resize-none p-3.5 border rounded-xl focus:outline-none focus:ring-2 text-sm placeholder-gray-400 transition ${
+                                content.length > MAX_CONTENT_LENGTH
+                                    ? "border-red-400 bg-red-50/30 focus:ring-red-500/20 focus:border-red-500"
+                                    : "border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-purple-500/20 focus:border-purple-500"
+                            }`}
+                        />
+                    </div>
+
+                    {/* Miniature de prévisualisation de l'image sélectionnée avant envoi */}
+                    {imagePreview && (
+                        <div className="relative inline-block group rounded-xl overflow-hidden border border-gray-200 bg-gray-50 max-h-56">
+                            <img
+                                src={imagePreview}
+                                alt="Prévisualisation avant envoi"
+                                className="max-h-56 w-auto object-cover rounded-xl"
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button
+                                    type="button"
+                                    onClick={handleRemoveImage}
+                                    disabled={submitting}
+                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
+                                >
+                                    <span>✕</span>
+                                    <span>Retirer l'image</span>
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={handleRemoveImage}
+                                disabled={submitting}
+                                className="sm:hidden absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full text-xs"
+                                aria-label="Retirer l'image"
+                            >
+                                ✕
+                            </button>
+                            {imageFile && (
+                                <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-md font-mono">
+                                    {(imageFile.size / (1024 * 1024)).toFixed(2)} Mo
+                                </span>
+                            )}
+                        </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+                        <label className={`flex items-center gap-2 text-xs text-gray-600 hover:text-purple-600 transition ${submitting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
+                            <span className="p-1.5 bg-gray-100 rounded-lg text-base">📷</span>
+                            <span className="truncate max-w-[220px] font-medium">
+                                {imageFile ? imageFile.name : "Ajouter une photo (JPG, PNG, WEBP, GIF)"}
                             </span>
                             <input
+                                ref={fileInputRef}
                                 type="file"
-                                accept="image/*"
-                                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                onChange={handleImageChange}
+                                disabled={submitting}
                                 className="hidden"
                             />
                         </label>
+
                         <button
                             type="submit"
-                            disabled={submitting || (!content.trim() && !imageFile)}
-                            className="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:opacity-95 disabled:opacity-40 transition shadow-sm"
+                            disabled={
+                                submitting ||
+                                !content.trim() ||
+                                content.length > MAX_CONTENT_LENGTH ||
+                                !!fileError
+                            }
+                            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:opacity-95 disabled:opacity-40 transition shadow-sm flex items-center justify-center gap-2"
                         >
-                            {submitting ? "Publication en cours..." : "Publier"}
+                            {submitting ? (
+                                <>
+                                    <span className="animate-spin text-base">⏳</span>
+                                    <span>Publication en cours...</span>
+                                </>
+                            ) : (
+                                <span>Publier</span>
+                            )}
                         </button>
                     </div>
                 </form>

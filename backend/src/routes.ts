@@ -158,7 +158,7 @@ async function deletePost(req: Request<{ id: string }>, res: Response) {
   if(!post) {
     return res.status(404).json({error: "Post not found"})
   }
-  if (post.authorId !== req.userId && (req as any).userRole !== "ADMIN"){
+  if (post.authorId !== req.userId && req.userRole !== "ADMIN"){
     return res.status(403).json({error: "Unauthorized action"})
   }
 

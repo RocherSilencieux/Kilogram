@@ -81,13 +81,17 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
         } else if (response.ok) {
           const raw = await response.json();
           if (raw && raw.id) {
-            const formattedComments: CommentItem[] = Array.isArray(raw.comments)
-              ? raw.comments.map((c: any) => ({
-                  id: String(c.id), content: c.content,
-                  authorName: c.author?.username || "utilisateur",
-                  createdAt: relTime(c.createdAt || c.created_at),
-                }))
-              : [];
+            const rawComments = Array.isArray(raw.comments) ? raw.comments : [];
+            const formattedComments: CommentItem[] = rawComments.map((cItem: unknown) => {
+              const c = cItem as Record<string, unknown>;
+              const cAuthor = typeof c.author === "object" && c.author !== null ? (c.author as Record<string, unknown>) : null;
+              return {
+                id: String(c.id ?? ""),
+                content: typeof c.content === "string" ? c.content : "",
+                authorName: typeof cAuthor?.username === "string" ? cAuthor.username : "utilisateur",
+                createdAt: relTime(typeof c.createdAt === "string" ? c.createdAt : (typeof c.created_at === "string" ? c.created_at : new Date().toISOString())),
+              };
+            });
             loadedPost = {
               id: String(raw.id), content: raw.content || "",
               imageUrl: raw.imageUrl || null,
@@ -451,8 +455,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
               }}
               title={`Voir @${authorUsername}`}
               onClick={() => post.author?.id && onNavigateToProfile?.(post.author.id)}
-              onMouseEnter={(e) => { if (post.author?.id) (e.currentTarget as HTMLDivElement).style.transform = "rotate(-6deg) scale(1.1)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = ""; }}
+              onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { if (post.author?.id) e.currentTarget.style.transform = "rotate(-6deg) scale(1.1)"; }}
+              onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.transform = ""; }}
             >
               {authorUsername.charAt(0).toUpperCase()}
             </div>
@@ -466,8 +470,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
                 background: "none", border: "none", cursor: "pointer",
                 transition: "transform 0.12s",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.15) rotate(-3deg)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = ""; }}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = "scale(1.15) rotate(-3deg)"; }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = ""; }}
             >
               <span style={{ fontSize: 18, lineHeight: 1 }}>{isLiked ? "❤️" : "🤍"}</span>
               <span style={{
@@ -486,8 +490,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
                 fontSize: 16, background: "none", border: "none", cursor: "pointer",
                 transition: "transform 0.15s", lineHeight: 1,
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.2) rotate(5deg)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.transform = ""; }}
+              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = "scale(1.2) rotate(5deg)"; }}
+              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.transform = ""; }}
             >
               {isSaved ? "🔖" : "📌"}
             </button>
@@ -542,8 +546,8 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
                     borderRadius: 3, padding: "1px 8px", cursor: "pointer",
                     transition: "color 0.12s, border-color 0.12s",
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--ink-teal)"; e.currentTarget.style.borderColor = "var(--ink-teal)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--ink-faded)"; e.currentTarget.style.borderColor = "var(--ink-faded)"; }}
+                  onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.color = "var(--ink-teal)"; e.currentTarget.style.borderColor = "var(--ink-teal)"; }}
+                  onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.color = "var(--ink-faded)"; e.currentTarget.style.borderColor = "var(--ink-faded)"; }}
                 >
                   🔗 lien
                 </button>
@@ -568,13 +572,13 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
                     maxWidth: 340, position: "relative",
                     transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.transform = "rotate(0deg) scale(1.02)";
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "7px 9px 22px rgba(22,18,31,0.3)";
+                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+                    e.currentTarget.style.transform = "rotate(0deg) scale(1.02)";
+                    e.currentTarget.style.boxShadow = "7px 9px 22px rgba(22,18,31,0.3)";
                   }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.transform = "rotate(-2deg)";
-                    (e.currentTarget as HTMLDivElement).style.boxShadow = "4px 5px 14px rgba(22,18,31,0.22)";
+                  onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+                    e.currentTarget.style.transform = "rotate(-2deg)";
+                    e.currentTarget.style.boxShadow = "4px 5px 14px rgba(22,18,31,0.22)";
                   }}
                 >
                   {/* Scotch */}

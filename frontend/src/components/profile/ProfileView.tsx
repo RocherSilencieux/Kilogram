@@ -128,7 +128,7 @@ function PostRow({ post, isAuthor, onClick }: PostRowProps) {
           overflow: 'hidden',
           display: '-webkit-box',
           WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical' as any,
+          WebkitBoxOrient: 'vertical',
         }}>
           {post.content}
         </p>
@@ -758,15 +758,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ userId }) => {
                           transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                           position: 'relative',
                         }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.transform = 'rotate(0deg) scale(1.05)';
-                          (e.currentTarget as HTMLDivElement).style.boxShadow = '6px 8px 20px rgba(22,18,31,0.35)';
-                          (e.currentTarget as HTMLDivElement).style.zIndex = '5';
+                        onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+                          e.currentTarget.style.transform = 'rotate(0deg) scale(1.05)';
+                          e.currentTarget.style.boxShadow = '6px 8px 20px rgba(22,18,31,0.35)';
+                          e.currentTarget.style.zIndex = '5';
                         }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLDivElement).style.transform = `rotate(${rot})`;
-                          (e.currentTarget as HTMLDivElement).style.boxShadow = '3px 4px 10px rgba(22,18,31,0.2)';
-                          (e.currentTarget as HTMLDivElement).style.zIndex = '1';
+                        onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+                          e.currentTarget.style.transform = `rotate(${rot})`;
+                          e.currentTarget.style.boxShadow = '3px 4px 10px rgba(22,18,31,0.2)';
+                          e.currentTarget.style.zIndex = '1';
                         }}
                       >
                         {/* Scotch */}
@@ -792,7 +792,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ userId }) => {
                               fontFamily: 'var(--font-hand)', fontSize: 12, color: '#555',
                               textAlign: 'center', lineHeight: 1.4,
                               overflow: 'hidden', display: '-webkit-box',
-                              WebkitLineClamp: 4, WebkitBoxOrient: 'vertical' as any,
+                              WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
                             }}>
                               "{post.content}"
                             </p>

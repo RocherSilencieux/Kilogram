@@ -3,7 +3,6 @@ import type { SearchProfileItem, UserPost, UserProfile } from '../types';
 const API_BASE = '/api';
 const DIRECT_BACKEND = 'http://localhost:3000';
 
-// Comptes par défaut fournis dans le README du backend
 const FALLBACK_USERS: Record<string, { profile: UserProfile; posts: UserPost[] }> = {
   alice: {
     profile: {
@@ -94,49 +93,41 @@ const FALLBACK_USERS: Record<string, { profile: UserProfile; posts: UserPost[] }
   },
 };
 
-/**
- * Effectue un appel API avec fallback automatique (via proxy ou directement vers http://localhost:3000)
- */
 async function apiFetch<T>(endpoint: string, token?: string | null): Promise<T | null> {
   const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
-  // 1. Essai via le proxy Vite (/api/...)
   try {
     const res = await fetch(`${API_BASE}${endpoint}`, { headers });
     if (res.ok) {
-      return (await res.json()) as T;
+      const data: T = await res.json();
+      return data;
     }
   } catch {
-    // Échec du proxy, essai direct
+    // Retry direct connection
   }
 
-  // 2. Essai direct sur localhost:3000
   try {
     const res = await fetch(`${DIRECT_BACKEND}${endpoint}`, { headers });
     if (res.ok) {
-      return (await res.json()) as T;
+      const data: T = await res.json();
+      return data;
     }
   } catch {
-    // Backend non joignable
+    // Backend unreachable
   }
 
   return null;
 }
 
-/**
- * Récupère tous les profils découverts (depuis l'API backend si en ligne, sinon profils par défaut)
- */
 export async function fetchAllProfiles(): Promise<{
   profiles: SearchProfileItem[];
   isBackendConnected: boolean;
 }> {
-  // On récupère les posts globaux pour extraire les auteurs enregistrés en BDD
   const posts = await apiFetch<Array<{ author?: { id: string; username: string }; authorId?: string }>>('/posts');
 
   if (posts && Array.isArray(posts)) {
     const userMap = new Map<string, SearchProfileItem>();
 
-    // Extraire les auteurs des posts
     posts.forEach((p) => {
       if (p.author && p.author.id && p.author.username) {
         userMap.set(p.author.id, {
@@ -146,7 +137,6 @@ export async function fetchAllProfiles(): Promise<{
       }
     });
 
-    // Si on a des auteurs de la BDD, on les renvoie
     const list = Array.from(userMap.values());
     if (list.length > 0) {
       return { profiles: list, isBackendConnected: true };
@@ -154,7 +144,6 @@ export async function fetchAllProfiles(): Promise<{
     return { profiles: getDefaultSearchProfiles(), isBackendConnected: true };
   }
 
-  // Fallback si le backend n'est pas lancé
   return {
     profiles: getDefaultSearchProfiles(),
     isBackendConnected: false,
@@ -170,33 +159,31 @@ function getDefaultSearchProfiles(): SearchProfileItem[] {
   }));
 }
 
-/**
- * Récupère les données publiques du profil d'un utilisateur
- */
 export async function fetchUserProfile(userIdOrName: string): Promise<UserProfile | null> {
-  // 0. Vérifier la présence d'une version sauvegardée localement (ex: après modification)
   try {
     const saved = localStorage.getItem(`kilogram_custom_profile_${userIdOrName}`);
     if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && parsed.id) return parsed;
+      const parsed: unknown = JSON.parse(saved);
+      if (typeof parsed === 'object' && parsed !== null && 'id' in parsed) {
+        return parsed as UserProfile;
+      }
     }
   } catch {}
 
-  // 1. Appel vers GET /users/:id
   const user = await apiFetch<UserProfile>(`/users/${encodeURIComponent(userIdOrName)}`);
   if (user && user.id) {
     try {
       const saved = localStorage.getItem(`kilogram_custom_profile_${user.id}`);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...user, ...parsed };
+        const parsed: unknown = JSON.parse(saved);
+        if (typeof parsed === 'object' && parsed !== null) {
+          return { ...user, ...parsed };
+        }
       }
     } catch {}
     return user;
   }
 
-  // 2. Si pas trouvé par ID ou backend éteint, chercher dans les fallbacks (par username ou id)
   const lower = userIdOrName.toLowerCase();
   for (const key of Object.keys(FALLBACK_USERS)) {
     const fb = FALLBACK_USERS[key];
@@ -204,8 +191,10 @@ export async function fetchUserProfile(userIdOrName: string): Promise<UserProfil
       try {
         const saved = localStorage.getItem(`kilogram_custom_profile_${fb.profile.id}`);
         if (saved) {
-          const parsed = JSON.parse(saved);
-          return { ...fb.profile, ...parsed };
+          const parsed: unknown = JSON.parse(saved);
+          if (typeof parsed === 'object' && parsed !== null) {
+            return { ...fb.profile, ...parsed };
+          }
         }
       } catch {}
       return fb.profile;
@@ -215,17 +204,12 @@ export async function fetchUserProfile(userIdOrName: string): Promise<UserProfil
   return null;
 }
 
-/**
- * Récupère uniquement les publications du profil sélectionné
- */
 export async function fetchUserPosts(userId: string, token?: string | null): Promise<UserPost[]> {
-  // 1. Appel vers GET /users/:id/posts
   const posts = await apiFetch<UserPost[]>(`/users/${encodeURIComponent(userId)}/posts`, token);
   if (posts && Array.isArray(posts)) {
     return posts;
   }
 
-  // 2. Fallback si backend éteint
   for (const key of Object.keys(FALLBACK_USERS)) {
     const fb = FALLBACK_USERS[key];
     if (fb.profile.id === userId || fb.profile.username.toLowerCase() === userId.toLowerCase()) {
@@ -236,9 +220,6 @@ export async function fetchUserPosts(userId: string, token?: string | null): Pro
   return [];
 }
 
-/**
- * Supprime une publication par son ID (Auteur uniquement, vérifié côté backend)
- */
 export async function deletePostApi(postId: string, token: string): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`${DIRECT_BACKEND}/posts/${postId}`, {
@@ -248,19 +229,20 @@ export async function deletePostApi(postId: string, token: string): Promise<{ su
       },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { success: false, error: data.error || 'Erreur lors de la suppression du post' };
+      const errorMsg = typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error: unknown }).error === 'string'
+        ? (data as { error: string }).error
+        : 'Erreur lors de la suppression du post';
+      return { success: false, error: errorMsg };
     }
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Impossible de contacter le serveur' };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Impossible de contacter le serveur';
+    return { success: false, error: message };
   }
 }
 
-/**
- * Supprime un commentaire par son ID (Auteur uniquement, vérifié côté backend)
- */
 export async function deleteCommentApi(commentId: string, token: string): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`${DIRECT_BACKEND}/comments/${commentId}`, {
@@ -270,12 +252,16 @@ export async function deleteCommentApi(commentId: string, token: string): Promis
       },
     });
 
-    const data = await res.json().catch(() => ({}));
+    const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { success: false, error: data.error || 'Erreur lors de la suppression du commentaire' };
+      const errorMsg = typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error: unknown }).error === 'string'
+        ? (data as { error: string }).error
+        : 'Erreur lors de la suppression du commentaire';
+      return { success: false, error: errorMsg };
     }
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Impossible de contacter le serveur' };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Impossible de contacter le serveur';
+    return { success: false, error: message };
   }
 }

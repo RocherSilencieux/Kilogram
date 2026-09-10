@@ -66,8 +66,8 @@ export const DEMO_FEED_POSTS: Post[] = [
 
 function sortDesc(posts: Post[]): Post[] {
     return [...posts].sort((a, b) => {
-        const tA = new Date(a.created_at || (a as any).createdAt || 0).getTime() || 0;
-        const tB = new Date(b.created_at || (b as any).createdAt || 0).getTime() || 0;
+        const tA = new Date(a.created_at || 0).getTime() || 0;
+        const tB = new Date(b.created_at || 0).getTime() || 0;
         return tB - tA;
     });
 }
@@ -399,23 +399,36 @@ export default function PostsPages({
         setTimeout(() => setToast(null), 2800);
     };
 
-    const normalizePosts = (data: any[]): Post[] =>
-        data.map((p) => ({
-            id: String(p.id),
-            content: p.content || "",
-            imageUrl: p.imageUrl || null,
-            created_at: p.created_at || p.createdAt || new Date().toISOString(),
-            author: p.author || (p.authorId ? { id: p.authorId, username: "utilisateur" } : { id: "anon", username: "Anonyme" }),
-            likeCount: typeof p.likeCount === "number" ? p.likeCount : (Array.isArray(p.likes) ? p.likes.length : 0),
-            commentCount: typeof p.commentCount === "number" ? p.commentCount : (Array.isArray(p.comments) ? p.comments.length : 0),
-            isLiked: Boolean(p.isLiked),
-            comments: Array.isArray(p.comments)
-                ? p.comments.map((c: any) => ({
-                    id: String(c.id), content: c.content,
-                    authorName: c.author?.username || "utilisateur",
-                    createdAt: relativeTime(c.createdAt || c.created_at),
-                })) : [],
-        }));
+    const normalizePosts = (data: unknown[]): Post[] =>
+        data.map((item) => {
+            const p = item as Record<string, unknown>;
+            const authorObj = typeof p.author === "object" && p.author !== null ? (p.author as Record<string, unknown>) : null;
+            const commentsArr = Array.isArray(p.comments) ? p.comments : [];
+            const likesArr = Array.isArray(p.likes) ? p.likes : [];
+
+            return {
+                id: String(p.id ?? ""),
+                content: typeof p.content === "string" ? p.content : "",
+                imageUrl: typeof p.imageUrl === "string" ? p.imageUrl : null,
+                created_at: typeof p.created_at === "string" ? p.created_at : (typeof p.createdAt === "string" ? p.createdAt : new Date().toISOString()),
+                author: authorObj && typeof authorObj.id === "string" && typeof authorObj.username === "string"
+                    ? { id: String(authorObj.id), username: String(authorObj.username) }
+                    : (typeof p.authorId === "string" ? { id: p.authorId, username: "utilisateur" } : { id: "anon", username: "Anonyme" }),
+                likeCount: typeof p.likeCount === "number" ? p.likeCount : likesArr.length,
+                commentCount: typeof p.commentCount === "number" ? p.commentCount : commentsArr.length,
+                isLiked: Boolean(p.isLiked),
+                comments: commentsArr.map((cItem) => {
+                    const c = cItem as Record<string, unknown>;
+                    const cAuthor = typeof c.author === "object" && c.author !== null ? (c.author as Record<string, unknown>) : null;
+                    return {
+                        id: String(c.id ?? ""),
+                        content: typeof c.content === "string" ? c.content : "",
+                        authorName: typeof c.authorName === "string" ? c.authorName : (typeof cAuthor?.username === "string" ? String(cAuthor.username) : "utilisateur"),
+                        createdAt: relativeTime(typeof c.createdAt === "string" ? c.createdAt : (typeof c.created_at === "string" ? c.created_at : new Date().toISOString())),
+                    };
+                }),
+            };
+        });
 
     const fetchPosts = useCallback(async (silent = false) => {
         if (silent) setRefreshing(true); else setLoading(true);
@@ -589,16 +602,24 @@ export default function PostsPages({
                 let res = await fetch(`/api/posts/${postId}`).catch(() => null);
                 if (!res || !res.ok) res = await fetch(`${API_URL}/posts/${postId}`).catch(() => null);
                 if (res && res.ok) {
-                    const json = await res.json();
-                    if (json && Array.isArray(json.comments)) {
-                        const fetched: CommentItem[] = json.comments.map((c: any) => ({
-                            id: String(c.id), content: c.content,
-                            authorName: c.author?.username || "utilisateur",
-                            createdAt: relativeTime(c.createdAt || c.created_at),
-                        }));
+                    const json: unknown = await res.json();
+                    if (typeof json === "object" && json !== null && "comments" in json && Array.isArray((json as Record<string, unknown>).comments)) {
+                        const rawComments = (json as Record<string, unknown>).comments as unknown[];
+                        const fetched: CommentItem[] = rawComments.map((cItem: unknown) => {
+                            const c = cItem as Record<string, unknown>;
+                            const cAuthor = typeof c.author === "object" && c.author !== null ? (c.author as Record<string, unknown>) : null;
+                            return {
+                                id: String(c.id ?? ""),
+                                content: typeof c.content === "string" ? c.content : "",
+                                authorName: typeof c.authorName === "string" ? c.authorName : (typeof cAuthor?.username === "string" ? String(cAuthor.username) : "utilisateur"),
+                                createdAt: relativeTime(typeof c.createdAt === "string" ? c.createdAt : (typeof c.created_at === "string" ? c.created_at : new Date().toISOString())),
+                            };
+                        });
+                        const jsonObj = json as Record<string, unknown>;
+                        const commentCountVal = typeof jsonObj.commentCount === "number" ? jsonObj.commentCount : fetched.length;
                         updatePost(postId, (p) => ({
                             ...p,
-                            commentCount: typeof json.commentCount === "number" ? json.commentCount : fetched.length,
+                            commentCount: commentCountVal,
                             comments: fetched,
                         }));
                     }

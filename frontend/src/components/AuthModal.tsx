@@ -78,8 +78,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       } else {
         throw new Error("Réponse inattendue du serveur.");
       }
-    } catch (err: any) {
-      setError(err.message || "Erreur de connexion");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur de connexion";
+      setError(message);
     } finally {
       setLoading(false);
     }

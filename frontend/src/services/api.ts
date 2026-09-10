@@ -97,10 +97,12 @@ const FALLBACK_USERS: Record<string, { profile: UserProfile; posts: UserPost[] }
 /**
  * Effectue un appel API avec fallback automatique (via proxy ou directement vers http://localhost:3000)
  */
-async function apiFetch<T>(endpoint: string): Promise<T | null> {
+async function apiFetch<T>(endpoint: string, token?: string | null): Promise<T | null> {
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
   // 1. Essai via le proxy Vite (/api/...)
   try {
-    const res = await fetch(`${API_BASE}${endpoint}`);
+    const res = await fetch(`${API_BASE}${endpoint}`, { headers });
     if (res.ok) {
       return (await res.json()) as T;
     }
@@ -110,7 +112,7 @@ async function apiFetch<T>(endpoint: string): Promise<T | null> {
 
   // 2. Essai direct sur localhost:3000
   try {
-    const res = await fetch(`${DIRECT_BACKEND}${endpoint}`);
+    const res = await fetch(`${DIRECT_BACKEND}${endpoint}`, { headers });
     if (res.ok) {
       return (await res.json()) as T;
     }
@@ -216,9 +218,9 @@ export async function fetchUserProfile(userIdOrName: string): Promise<UserProfil
 /**
  * Récupère uniquement les publications du profil sélectionné
  */
-export async function fetchUserPosts(userId: string): Promise<UserPost[]> {
+export async function fetchUserPosts(userId: string, token?: string | null): Promise<UserPost[]> {
   // 1. Appel vers GET /users/:id/posts
-  const posts = await apiFetch<UserPost[]>(`/users/${encodeURIComponent(userId)}/posts`);
+  const posts = await apiFetch<UserPost[]>(`/users/${encodeURIComponent(userId)}/posts`, token);
   if (posts && Array.isArray(posts)) {
     return posts;
   }

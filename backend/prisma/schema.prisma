@@ -52,6 +52,8 @@ model Like {
 
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
 }
 
 model Follow {

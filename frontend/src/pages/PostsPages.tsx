@@ -15,6 +15,7 @@ export interface Post {
     likeCount: number;
     commentCount: number;
     comments?: CommentItem[];
+    isLiked?: boolean;
 }
 
 export const DEMO_FEED_POSTS: Post[] = [
@@ -382,7 +383,8 @@ export default function PostsPages({
     const [submitting, setSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set(["demo_post_1"]));
+    // Interactions utilisateur locales
+    const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
     const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
     const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
     const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -406,6 +408,7 @@ export default function PostsPages({
             author: p.author || (p.authorId ? { id: p.authorId, username: "utilisateur" } : { id: "anon", username: "Anonyme" }),
             likeCount: typeof p.likeCount === "number" ? p.likeCount : (Array.isArray(p.likes) ? p.likes.length : 0),
             commentCount: typeof p.commentCount === "number" ? p.commentCount : (Array.isArray(p.comments) ? p.comments.length : 0),
+            isLiked: Boolean(p.isLiked),
             comments: Array.isArray(p.comments)
                 ? p.comments.map((c: any) => ({
                     id: String(c.id), content: c.content,
@@ -418,15 +421,16 @@ export default function PostsPages({
         if (silent) setRefreshing(true); else setLoading(true);
         let liveData: Post[] | null = null;
         let connected = false;
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
         try {
-            const res = await fetch("/api/posts");
+            const res = await fetch("/api/posts", { headers });
             if (res.ok) { const j = await res.json(); if (Array.isArray(j) && j.length > 0) { liveData = normalizePosts(j); connected = true; } }
         } catch {}
 
         if (!liveData) {
             try {
-                const res = await fetch(`${API_URL}/posts`);
+                const res = await fetch(`${API_URL}/posts`, { headers });
                 if (res.ok) { const j = await res.json(); if (Array.isArray(j) && j.length > 0) { liveData = normalizePosts(j); connected = true; } }
             } catch {}
         }
@@ -437,9 +441,20 @@ export default function PostsPages({
         setAllPosts(sorted);
         setDisplayedPosts(sorted.slice(0, PAGE_SIZE));
         setPage(1);
+
+        if (liveData && liveData.length > 0) {
+            const likedSet = new Set<string>();
+            liveData.forEach((p) => {
+                if (p.isLiked) likedSet.add(p.id);
+            });
+            setLikedPostIds(likedSet);
+        } else if (!connected) {
+            setLikedPostIds(new Set(["demo_post_1"]));
+        }
+
         setLoading(false);
         setRefreshing(false);
-    }, []);
+    }, [token]);
 
     useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -511,7 +526,7 @@ export default function PostsPages({
                         id: String(raw.id), content: raw.content, imageUrl: raw.imageUrl,
                         created_at: raw.createdAt || new Date().toISOString(),
                         author: raw.author || { id: user?.id || "u", username: user?.username || "moi" },
-                        likeCount: 0, commentCount: 0, comments: [],
+                        likeCount: 0, commentCount: 0, comments: [], isLiked: false,
                     };
                     setAllPosts((p) => [newP, ...p]);
                     setDisplayedPosts((p) => [newP, ...p]);
@@ -525,11 +540,10 @@ export default function PostsPages({
             id: `post_local_${Date.now()}`, content: text, imageUrl: imagePreview,
             created_at: new Date().toISOString(),
             author: { id: user?.id || "me", username: user?.username || "moi" },
-            likeCount: 1, commentCount: 0, comments: [],
+            likeCount: 0, commentCount: 0, comments: [], isLiked: false,
         };
         setAllPosts((p) => [local, ...p]);
         setDisplayedPosts((p) => [local, ...p]);
-        setLikedPostIds((s) => new Set(s).add(local.id));
         handleRemoveImage(); setContent(""); setSubmitting(false);
         showToast("Croquis ajouté en local ! ✏️");
     };
@@ -542,9 +556,16 @@ export default function PostsPages({
     const toggleLike = (postId: string) => {
         const liked = likedPostIds.has(postId);
         setLikedPostIds((s) => { const n = new Set(s); liked ? n.delete(postId) : n.add(postId); return n; });
-        updatePost(postId, (p) => ({ ...p, likeCount: liked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1 }));
+        updatePost(postId, (p) => ({
+            ...p,
+            likeCount: liked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1,
+            isLiked: !liked,
+        }));
         if (token && isDbConnected)
-            fetch(`${API_URL}/posts/${postId}/like`, { method: liked ? "DELETE" : "POST", headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+            fetch(`${API_URL}/posts/${postId}/like`, {
+                method: liked ? "DELETE" : "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            }).catch(() => {});
     };
 
     const toggleSave = (postId: string) => {

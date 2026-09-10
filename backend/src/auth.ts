@@ -30,3 +30,26 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
+
+export function optionalAuthenticate(req: Request, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+
+  if (!header) {
+    return next();
+  }
+
+  const token = header.split(" ")[1];
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, JWT_SECRET);
+    (req as any).userId = decoded.userId;
+    (req as any).userRole = decoded.role;
+  } catch {
+    // Si token invalide ou expiré, continuer en invité
+  }
+  next();
+}
+

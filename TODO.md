@@ -1,0 +1,23 @@
+# TODO
+
+- [x] Create rules folder and document backend folder access policy
+- [x] Create DEVLOG.md and record changes
+- [x] Create implementation plan for frontend Login/Register & Backend plan for user
+- [x] Create AuthContext.tsx and AuthModal.tsx in frontend
+- [x] Connect AuthContext in App.tsx and PostsPages.tsx
+- [x] Document all modifications and backend plan in dedicated file
+- [x] Verify frontend build
+- [x] Add root package.json dev scripts and explain command failure to user
+- [x] Audit backend folder to verify completed backend features
+- [x] Update AuthModal.tsx to send email for login matching backend route contract
+- [x] Update docs/MODIFICATIONS_AND_BACKEND_PLAN.md with audit findings
+- [x] Fix CORS issue in backend/.env and backend/src/index.ts
+- [x] Sync AuthModal mode state with initialMode prop when opening modal
+- [x] Perform final audit and verify production build readiness
+- [x] Cleanly merge App.tsx conflict and push changes to remote
+- [x] Story 1 (S1 - Inscription): Implement RegisterForm with controlled inputs and front-end validation
+- [x] Story 1 (S1 - Inscription): Implement field-by-field API error display (Zod details & email uniqueness)
+- [x] Story 1 (S1 - Inscription): Secure password handling and strict TypeScript types (0 any, 0 as)
+- [x] Story 1 (S1 - Inscription): Handle 4 UI states (empty, loading, error, success) and switch to login link
+- [x] Story 1 (S1 - Inscription): Verify with automated tests, oxlint, and build
+- [x] Test Suite Setup: Configure Vitest and React Testing Library in frontend and root package.json (26/26 tests passing)

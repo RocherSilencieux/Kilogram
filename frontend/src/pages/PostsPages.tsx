@@ -13,8 +13,10 @@ export interface CommentItem {
     id: string;
     content: string;
     authorName: string;
+    authorId?: string;
     createdAt: string;
 }
+
 
 export interface Post {
     id: string;
@@ -507,7 +509,96 @@ export default function PostsPages({ onSelectPost }: { onSelectPost?: (postId: s
         }
     };
 
+    // 6. Suppression d'une publication (Auteur uniquement, vérifié côté backend)
+    const handleDeletePost = async (postId: string) => {
+        const postToDelete = allPosts.find((p) => p.id === postId);
+        if (!postToDelete) return;
+
+        const isAuthor = Boolean(
+            user && (user.username === postToDelete.author?.username || user.id === postToDelete.author?.id)
+        );
+
+        if (!isAuthor) {
+            alert("Seul l'auteur de la publication peut la supprimer.");
+            return;
+        }
+
+        const confirmed = window.confirm("Voulez-vous vraiment supprimer cette publication ? Cette action est irréversible.");
+        if (!confirmed) return;
+
+        // Mise à jour de l'UI instantanée sans rechargement
+        setAllPosts((prev) => prev.filter((p) => p.id !== postId));
+        setDisplayedPosts((prev) => prev.filter((p) => p.id !== postId));
+        showToast("Publication supprimée !");
+
+        if (token && isDbConnected) {
+            try {
+                const res = await fetch(`${API_URL}/posts/${postId}`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(`Échec de la suppression sur le serveur: ${data.error || "Accès refusé"}`);
+                    fetchPosts(true);
+                }
+            } catch (err) {
+                console.error("Erreur lors de la suppression:", err);
+            }
+        }
+    };
+
+    // 7. Suppression d'un commentaire (Auteur uniquement, vérifié côté backend)
+    const handleDeleteComment = async (postId: string, commentId: string) => {
+        const post = allPosts.find((p) => p.id === postId);
+        const commentToDelete = post?.comments?.find((c) => c.id === commentId);
+        if (!commentToDelete) return;
+
+        const isAuthor = Boolean(
+            user && (user.username === commentToDelete.authorName || user.id === commentToDelete.authorId)
+        );
+
+        if (!isAuthor) {
+            alert("Seul l'auteur du commentaire peut le supprimer.");
+            return;
+        }
+
+        const confirmed = window.confirm("Voulez-vous vraiment supprimer ce commentaire ?");
+        if (!confirmed) return;
+
+        // Mise à jour de l'UI instantanée sans rechargement
+        updatePostState(postId, (p) => ({
+            ...p,
+            commentCount: Math.max(0, p.commentCount - 1),
+            comments: p.comments?.filter((c) => c.id !== commentId),
+        }));
+        showToast("Commentaire supprimé !");
+
+        if (token && isDbConnected) {
+            try {
+                const res = await fetch(`${API_URL}/comments/${commentId}`, {
+                    method: "DELETE",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    showToast(`Échec de la suppression du commentaire: ${data.error || "Accès refusé"}`);
+                    toggleCommentsDrawer(postId);
+                }
+            } catch (err) {
+                console.error("Erreur lors de la suppression du commentaire:", err);
+            }
+        }
+    };
+
     // Rendu stylisé du texte avec hashtags et mentions colorés
+
     const renderFormattedText = (text: string) => {
         const words = text.split(" ");
         return words.map((word, i) => {
@@ -724,7 +815,19 @@ export default function PostsPages({ onSelectPost }: { onSelectPost?: (postId: s
                                         </div>
 
                                         <div className="flex items-center gap-2">
+                                            {/* Bouton de suppression (Auteur uniquement) */}
+                                            {user && (user.username === authorUsername || user.id === post.author?.id) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeletePost(post.id)}
+                                                    className="text-xs font-semibold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-2.5 py-1 rounded-lg border border-red-500/20 transition"
+                                                    title="Supprimer cette publication"
+                                                >
+                                                    Supprimer
+                                                </button>
+                                            )}
                                             {onSelectPost && (
+
                                                 <button
                                                     type="button"
                                                     onClick={() => onSelectPost(post.id)}
@@ -829,7 +932,7 @@ export default function PostsPages({ onSelectPost }: { onSelectPost?: (postId: s
                                             <div className="comments-list">
                                                 {(post.comments && post.comments.length > 0) ? (
                                                     post.comments.map((c) => (
-                                                        <div key={c.id} className="comment-bubble">
+                                                        <div key={c.id} className="comment-bubble flex items-center justify-between">
                                                             <div>
                                                                 <span className="comment-user">@{c.authorName}</span>
                                                                 <span className="text-[var(--text-main)]">{c.content}</span>
@@ -837,7 +940,18 @@ export default function PostsPages({ onSelectPost }: { onSelectPost?: (postId: s
                                                                     {c.createdAt}
                                                                 </span>
                                                             </div>
+                                                            {user && (user.username === c.authorName || user.id === c.authorId) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteComment(post.id, c.id)}
+                                                                    className="text-[11px] font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2 py-0.5 rounded transition"
+                                                                    title="Supprimer ce commentaire"
+                                                                >
+                                                                    Supprimer
+                                                                </button>
+                                                            )}
                                                         </div>
+
                                                     ))
                                                 ) : (
                                                     <p className="text-xs text-[var(--text-dim)] py-2 text-center">

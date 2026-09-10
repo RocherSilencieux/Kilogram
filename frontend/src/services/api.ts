@@ -210,3 +210,47 @@ export async function fetchUserPosts(userId: string): Promise<UserPost[]> {
 
   return [];
 }
+
+/**
+ * Supprime une publication par son ID (Auteur uniquement, vérifié côté backend)
+ */
+export async function deletePostApi(postId: string, token: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${DIRECT_BACKEND}/posts/${postId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Erreur lors de la suppression du post' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Impossible de contacter le serveur' };
+  }
+}
+
+/**
+ * Supprime un commentaire par son ID (Auteur uniquement, vérifié côté backend)
+ */
+export async function deleteCommentApi(commentId: string, token: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${DIRECT_BACKEND}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { success: false, error: data.error || 'Erreur lors de la suppression du commentaire' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Impossible de contacter le serveur' };
+  }
+}

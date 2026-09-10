@@ -421,7 +421,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack }
               ))
             ) : (
               <div style={{ padding: "32px 16px", textAlign: "center", border: "2px dashed var(--border-color)", borderRadius: "16px" }}>
-                <p style={{ fontSize: "13px", color: "var(--text-dim)", italic: "true", marginBottom: "4px" }}>
+                <p style={{ fontSize: "13px", color: "var(--text-dim)", fontStyle: "italic", marginBottom: "4px" }}>
                   Aucune réaction pour l'instant.
                 </p>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--orange-500)" }}>
@@ -436,9 +436,10 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack }
       {/* Modal Zoom Photo */}
       {zoomImage && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 999, backgroundColor: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)", display: "flex", itemsCenter: "center", justifyCenter: "center", padding: "20px" }}
+          style={{ position: "fixed", inset: 0, zIndex: 999, backgroundColor: "rgba(0,0,0,0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}
           onClick={() => setZoomImage(null)}
         >
+
           <div style={{ position: "relative", maxWidth: "900px", maxHeight: "90vh" }}>
             <img src={zoomImage} alt="Zoom" style={{ maxWidth: "100%", maxHeight: "85vh", borderRadius: "20px", border: "1px solid rgba(255,255,255,0.2)" }} />
             <button

@@ -73,3 +73,11 @@
 ### Additions & Modifications
 - Restored `frontend/src/App.tsx` containing the Kilogram application structure (AuthProvider, HeaderNav, PostsPages, ProfileView, theme toggle, and AuthModal).
 - Verified Vite build via `npx vite build` in `frontend/` (Built cleanly in 700ms).
+
+## [2026-09-10] Story S8 — Deletion Implementation (Branch `delete`)
+
+### Additions & Modifications
+- Created helper functions `deletePostApi` and `deleteCommentApi` in `frontend/src/services/api.ts`.
+- Implemented `handleDeletePost` and `handleDeleteComment` in `frontend/src/pages/PostsPages.tsx` with author-only checks, confirmation dialogs (`window.confirm`), and optimistic UI updates without page reloads.
+- Implemented post deletion in `frontend/src/components/profile/ProfileView.tsx` for author profiles.
+- Verified TypeScript compilation (`npx tsc -b`) and production bundle build (`npx vite build` in 357ms) with zero errors.

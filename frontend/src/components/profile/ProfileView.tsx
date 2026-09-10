@@ -4,11 +4,15 @@ import {
   fetchAllProfiles,
   fetchUserProfile,
   fetchUserPosts,
+  deletePostApi,
 } from '../../services/api';
 import { ProfileSearchBar } from './ProfileSearchBar';
+import { useAuth } from '../../context/AuthContext';
 
 export const ProfileView: React.FC = () => {
+  const { user, token } = useAuth();
   const [profiles, setProfiles] = useState<SearchProfileItem[]>([]);
+
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userPosts, setUserPosts] = useState<UserPost[]>([]);
@@ -102,8 +106,31 @@ export const ProfileView: React.FC = () => {
     setSelectedUserId(profile.id);
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!userProfile) return;
+    const isAuthor = Boolean(user && (user.id === userProfile.id || user.username === userProfile.username));
+    if (!isAuthor) {
+      alert("Seul l'auteur de la publication peut la supprimer.");
+      return;
+    }
+
+    const confirmed = window.confirm("Voulez-vous vraiment supprimer cette publication ? Cette action est irréversible.");
+    if (!confirmed) return;
+
+    setUserPosts((prev) => prev.filter((p) => p.id !== postId));
+    setSelectedPost(null);
+
+    if (token) {
+      const res = await deletePostApi(postId, token);
+      if (!res.success) {
+        alert(res.error || "Impossible de supprimer la publication sur le serveur.");
+      }
+    }
+  };
+
   return (
     <div className="profile-container">
+
       {/* Barre de statut du Backend */}
       <div className="status-banner">
         <div className="status-indicator">
@@ -278,15 +305,28 @@ export const ProfileView: React.FC = () => {
           >
             <header className="modal-header">
               <span className="modal-title">Détail de la publication</span>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setSelectedPost(null)}
-                aria-label="Fermer la modal"
-              >
-                ✕
-              </button>
+              <div className="flex items-center gap-3">
+                {user && userProfile && (user.id === userProfile.id || user.username === userProfile.username) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeletePost(selectedPost.id)}
+                    className="text-xs font-semibold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-lg transition"
+                    title="Supprimer cette publication"
+                  >
+                    Supprimer
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="modal-close-btn"
+                  onClick={() => setSelectedPost(null)}
+                  aria-label="Fermer la modal"
+                >
+                  ✕
+                </button>
+              </div>
             </header>
+
 
             <div className="modal-content">
               {selectedPost.imageUrl && (

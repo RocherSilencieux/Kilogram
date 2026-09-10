@@ -17,4 +17,10 @@
 - [x] Cleanly merge App.tsx conflict and push changes to remote
 - [x] Fix PostCSS config searchPath error by creating frontend/postcss.config.js
 - [x] Restore Kilogram application in frontend/src/App.tsx
-- [x] Verify Vite build
+- [x] Story S8 — Deletion (branch delete):
+  - [x] Create git branch `delete` from `dev`
+  - [x] Create implementation plan artifact
+  - [x] Add delete post and comment API helpers in `frontend/src/services/api.ts`
+  - [x] Implement post and comment deletion with confirmation & optimistic UI update in `frontend/src/pages/PostsPages.tsx`
+  - [x] Implement post deletion in `frontend/src/components/profile/ProfileView.tsx`
+  - [x] Verify build with `npx tsc -b` and `npx vite build`

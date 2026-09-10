@@ -98,57 +98,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-md p-4 animate-fadeIn">
-      <div className="bg-[var(--bg-elevated)] w-full max-w-md rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden relative">
-        {/* Ligne d'accent en haut */}
-        <div className="h-1 w-full bg-[var(--brand-gradient)]" />
-
-        {/* En-tête de la modal & Onglets */}
-        <div className="flex border-b border-[var(--border-color)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-sketch-pop">
+      <div className="sketch-card w-full max-w-md border-3 border-black shadow-[8px_8px_0px_0px_#000] bg-[var(--bg-paper)] overflow-hidden relative">
+        
+        {/* En-tête des Onglets Crayonnés */}
+        <div className="flex border-b-2 border-black bg-[var(--bg-input)]">
           <button
             type="button"
             onClick={() => switchMode("login")}
-            className={`flex-1 py-4 text-sm font-bold transition ${
+            className={`flex-1 py-3 text-base font-extrabold font-hand transition ${
               mode === "login"
-                ? "text-[var(--orange-500)] border-b-2 border-[var(--orange-500)] bg-[var(--brand-gradient-soft)]"
+                ? "bg-[var(--omori-purple)] text-white border-b-2 border-black"
                 : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
             }`}
           >
-            Connexion
+            ✏️ Connexion
           </button>
           <button
             type="button"
             onClick={() => switchMode("register")}
-            className={`flex-1 py-4 text-sm font-bold transition ${
+            className={`flex-1 py-3 text-base font-extrabold font-hand transition ${
               mode === "register"
-                ? "text-[var(--orange-500)] border-b-2 border-[var(--orange-500)] bg-[var(--brand-gradient-soft)]"
+                ? "bg-[var(--omori-red)] text-white border-b-2 border-black"
                 : "text-[var(--text-dim)] hover:text-[var(--text-main)]"
             }`}
           >
-            Inscription
+            📌 Inscription
           </button>
         </div>
 
         {/* Corps de la modal */}
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-[var(--text-main)] mb-1 font-['Outfit']">
-            {mode === "login" ? "Bienvenue sur Kilogram" : "Créer un compte"}
-          </h2>
-          <p className="text-xs text-[var(--text-dim)] mb-6">
-            {mode === "login"
-              ? "Connectez-vous pour publier et liker des publications."
-              : "Rejoignez la communauté Kilogram en quelques secondes."}
-          </p>
+        <div className="p-6 space-y-4">
+          <div>
+            <h2 className="text-2xl font-black font-hand text-[var(--text-main)] mb-1">
+              {mode === "login" ? "Bienvenue sur Kilogram ✏️" : "Créer votre fiche"}
+            </h2>
+            <p className="text-xs font-hand font-bold text-[var(--text-dim)]">
+              {mode === "login"
+                ? "Connectez-vous pour publier et liker des croquis."
+                : "Rejoignez le carnet de croquis Kilogram en quelques secondes."}
+            </p>
+          </div>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-xl">
-              {error}
+            <div className="p-3 bg-rose-500/10 border-2 border-black text-rose-500 text-xs font-bold rounded-xl shadow-[2px_2px_0px_0px_#000]">
+              ⚠️ {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+              <label className="block text-xs font-bold font-hand text-[var(--text-main)] mb-1">
                 Adresse email
               </label>
               <input
@@ -157,13 +157,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Ex: alice@test.com"
                 required
-                className="w-full px-3.5 py-2.5 text-sm bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-[var(--orange-500)] focus:ring-2 focus:ring-orange-500/20 transition placeholder-[var(--text-dim)]"
+                className="w-full px-3.5 py-2 text-sm bg-[var(--bg-card)] border-2 border-black rounded-xl text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-[var(--text-dim)] shadow-[2px_2px_0px_0px_#000]"
               />
             </div>
 
             {mode === "register" && (
               <div>
-                <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+                <label className="block text-xs font-bold font-hand text-[var(--text-main)] mb-1">
                   Nom d'utilisateur
                 </label>
                 <input
@@ -172,13 +172,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Ex: alex_dev"
                   required
-                  className="w-full px-3.5 py-2.5 text-sm bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-[var(--orange-500)] focus:ring-2 focus:ring-orange-500/20 transition placeholder-[var(--text-dim)]"
+                  className="w-full px-3.5 py-2 text-sm bg-[var(--bg-card)] border-2 border-black rounded-xl text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-[var(--text-dim)] shadow-[2px_2px_0px_0px_#000]"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
+              <label className="block text-xs font-bold font-hand text-[var(--text-main)] mb-1">
                 Mot de passe
               </label>
               <input
@@ -187,28 +187,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                className="w-full px-3.5 py-2.5 text-sm bg-[var(--bg-input)] text-[var(--text-main)] border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-[var(--orange-500)] focus:ring-2 focus:ring-orange-500/20 transition placeholder-[var(--text-dim)]"
+                className="w-full px-3.5 py-2 text-sm bg-[var(--bg-card)] border-2 border-black rounded-xl text-[var(--text-main)] focus:outline-none focus:ring-2 focus:ring-purple-400 placeholder-[var(--text-dim)] shadow-[2px_2px_0px_0px_#000]"
               />
             </div>
 
-            <div className="pt-3 flex items-center justify-end gap-3">
+            <div className="pt-4 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-main)] transition"
+                className="sketch-btn text-xs px-3 py-1.5"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary-gradient text-xs font-semibold disabled:opacity-50"
+                className="sketch-btn sketch-btn-primary text-xs px-5 py-2 disabled:opacity-50"
               >
                 {loading
                   ? "Chargement..."
                   : mode === "login"
-                  ? "Se connecter"
-                  : "S'inscrire"}
+                  ? "Se connecter ✏️"
+                  : "S'inscrire ✏️"}
               </button>
             </div>
           </form>

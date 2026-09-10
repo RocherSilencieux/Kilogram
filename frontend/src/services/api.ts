@@ -172,9 +172,25 @@ function getDefaultSearchProfiles(): SearchProfileItem[] {
  * Récupère les données publiques du profil d'un utilisateur
  */
 export async function fetchUserProfile(userIdOrName: string): Promise<UserProfile | null> {
+  // 0. Vérifier la présence d'une version sauvegardée localement (ex: après modification)
+  try {
+    const saved = localStorage.getItem(`kilogram_custom_profile_${userIdOrName}`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.id) return parsed;
+    }
+  } catch {}
+
   // 1. Appel vers GET /users/:id
   const user = await apiFetch<UserProfile>(`/users/${encodeURIComponent(userIdOrName)}`);
   if (user && user.id) {
+    try {
+      const saved = localStorage.getItem(`kilogram_custom_profile_${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { ...user, ...parsed };
+      }
+    } catch {}
     return user;
   }
 
@@ -183,6 +199,13 @@ export async function fetchUserProfile(userIdOrName: string): Promise<UserProfil
   for (const key of Object.keys(FALLBACK_USERS)) {
     const fb = FALLBACK_USERS[key];
     if (fb.profile.id === userIdOrName || fb.profile.username.toLowerCase() === lower) {
+      try {
+        const saved = localStorage.getItem(`kilogram_custom_profile_${fb.profile.id}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return { ...fb.profile, ...parsed };
+        }
+      } catch {}
       return fb.profile;
     }
   }

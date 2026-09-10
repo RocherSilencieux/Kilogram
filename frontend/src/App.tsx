@@ -8,7 +8,7 @@ import { AuthModal } from './components/AuthModal';
 
 type RouteState =
   | { type: 'feed' }
-  | { type: 'profile' }
+  | { type: 'profile'; userId?: string }
   | { type: 'post-detail'; postId: string };
 
 function parseCurrentRoute(): RouteState {
@@ -19,8 +19,10 @@ function parseCurrentRoute(): RouteState {
       return { type: 'post-detail', postId };
     }
   }
-  if (path === '/profile') {
-    return { type: 'profile' };
+  if (path.startsWith('/profile')) {
+    const parts = path.split('/').filter(Boolean);
+    const userId = parts[1];
+    return { type: 'profile', userId };
   }
   return { type: 'feed' };
 }
@@ -54,79 +56,71 @@ function HeaderNav({
 
   return (
     <>
-      <nav className="site-navbar">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          {/* Brand & Tab Navigation */}
-          <div className="flex items-center gap-6">
-            <div
-              className="flex items-center gap-2 cursor-pointer select-none"
-              onClick={onNavigateToFeed}
-            >
-              <span className="brand-gradient-text">Kilogram</span>
-            </div>
+      <nav className="site-navbar" aria-label="Navigation principale">
+        <div style={{ maxWidth: 860, margin: '0 auto', padding: '0 24px', height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
 
-            {/* Sélecteur d'onglets */}
-            <div className="nav-tabs-pill">
+          {/* Logo — titre du cahier */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+            <button className="brand-sketch-text" onClick={onNavigateToFeed} aria-label="Kilogram — Accueil">
+              Kilogram ✏️
+            </button>
+
+            {/* Onglets */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <button
-                type="button"
+                className={`nav-tab ${isFeedActive ? 'active' : ''}`}
                 onClick={onNavigateToFeed}
-                className={`nav-tab-btn ${isFeedActive ? 'active' : ''}`}
+                role="tab" aria-selected={isFeedActive}
               >
-                Fil d'actualité
+                📜 Fil d'actualité
               </button>
               <button
-                type="button"
+                className={`nav-tab ${isProfileActive ? 'active' : ''}`}
                 onClick={onNavigateToProfile}
-                className={`nav-tab-btn ${isProfileActive ? 'active' : ''}`}
+                role="tab" aria-selected={isProfileActive}
               >
-                Profil
+                👤 Mon profil
               </button>
             </div>
           </div>
 
-          {/* Actions à droite */}
-          <div className="flex items-center gap-3">
+          {/* Actions droite */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
-              type="button"
+              className="nav-pill nav-pill-ghost"
               onClick={onToggleTheme}
-              className="theme-toggle-btn"
-              title={isDarkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
-              aria-label="Basculer le thème"
+              title={isDarkMode ? 'Mode Papier Clair' : 'Mode Black Space'}
+              aria-label="Changer de thème"
             >
-              <span>{isDarkMode ? '☀️' : '🌙'}</span>
-              <span>{isDarkMode ? 'Clair' : 'Sombre'}</span>
+              {isDarkMode ? '☀️ clair' : '🌙 sombre'}
             </button>
 
             {isAuthenticated && user ? (
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold px-3 py-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-main)]">
+              <>
+                <span style={{
+                  fontFamily: 'var(--font-caveat)', fontSize: 15, color: 'rgba(240,234,255,0.7)',
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: 4, padding: '3px 10px', letterSpacing: 0.3,
+                }}>
                   @{user.username}
                 </span>
                 <button
-                  type="button"
+                  className="nav-pill nav-pill-ghost"
                   onClick={logout}
-                  className="text-xs font-semibold text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/20 transition"
+                  style={{ color: '#ff7090', borderColor: 'rgba(255,70,100,0.4)' }}
                 >
-                  Déconnexion
+                  déconnexion
                 </button>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => openAuth('login')}
-                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-lg transition"
-                >
-                  Connexion
+              <>
+                <button className="nav-pill nav-pill-ghost" onClick={() => openAuth('login')}>
+                  connexion
                 </button>
-                <button
-                  type="button"
-                  onClick={() => openAuth('register')}
-                  className="btn-primary-gradient text-xs font-semibold"
-                >
-                  Inscription
+                <button className="nav-pill" onClick={() => openAuth('register')}>
+                  inscription
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
@@ -146,7 +140,7 @@ function AppContent() {
   const [route, setRoute] = useState<RouteState>(() => parseCurrentRoute());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('kilogram-theme');
-    return saved ? saved === 'dark' : true;
+    return saved ? saved === 'dark' : false;
   });
 
   useEffect(() => {
@@ -154,7 +148,7 @@ function AppContent() {
     localStorage.setItem('kilogram-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  // Synchronisation avec les boutons Précédent / Suivant du navigateur
+  // Synchronisation avec les boutons Précédent / Suivant
   useEffect(() => {
     const handlePopState = () => {
       setRoute(parseCurrentRoute());
@@ -170,11 +164,12 @@ function AppContent() {
     setRoute({ type: 'feed' });
   };
 
-  const navigateToProfile = () => {
-    if (window.location.pathname !== '/profile') {
-      window.history.pushState({}, '', '/profile');
+  const navigateToProfile = (targetUserId?: string) => {
+    const newPath = targetUserId ? `/profile/${targetUserId}` : '/profile';
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({}, '', newPath);
     }
-    setRoute({ type: 'profile' });
+    setRoute({ type: 'profile', userId: targetUserId });
   };
 
   const navigateToPost = (postId: string) => {
@@ -190,21 +185,22 @@ function AppContent() {
       <HeaderNav
         currentRoute={route}
         onNavigateToFeed={navigateToFeed}
-        onNavigateToProfile={navigateToProfile}
+        onNavigateToProfile={() => navigateToProfile()}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
       />
-      <main className="py-6 px-4">
+      <main className="pt-6">
         {route.type === 'feed' && (
-          <PostsPages onSelectPost={navigateToPost} />
+          <PostsPages onSelectPost={navigateToPost} onSelectAuthor={navigateToProfile} />
         )}
         {route.type === 'post-detail' && (
           <PostDetailView
             postId={route.postId}
             onBack={navigateToFeed}
+            onNavigateToProfile={navigateToProfile}
           />
         )}
-        {route.type === 'profile' && <ProfileView />}
+        {route.type === 'profile' && <ProfileView userId={route.userId} />}
       </main>
     </div>
   );

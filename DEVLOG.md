@@ -61,3 +61,23 @@
 - Resolved `frontend/src/App.tsx` merge conflict between `dev` branch and `Kilogram/profile` branch.
 - Combined `AuthProvider`, `AuthModal`, tab switcher ("Feed" / "Profil"), `ProfileView`, `PostsPages`, and light/dark theme toggle cleanly.
 - Pushed resolved commits to remote repository (`git push`).
+## [2026-09-10] Story 1 (S1 — Inscription) Frontend Implementation
+
+### Additions & Modifications
+- Created `frontend/src/types/auth.ts` defining strict TypeScript models (`RegisterFormData`, `RegisterFieldErrors`, `RegisterSuccessResponse`) and runtime type guards (`isRecord`, `isRegisterSuccessResponse`) eliminating `any` and `as`.
+- Created `frontend/src/utils/authValidation.ts` providing pure client-side validation (`validateEmail`, `validateUsername`, `validatePassword`) and robust server-side error mapping extracting field-by-field errors from Zod responses and uniqueness constraints.
+- Created `frontend/src/components/auth/RegisterForm.tsx` as a dedicated single-responsibility component fulfilling all S1 acceptance criteria and DoD (controlled inputs, field-by-field errors, 4 UI states: empty/loading/error/success, password safety, and link to login).
+- Created `frontend/src/components/auth/LoginForm.tsx` extracting login logic cleanly from `AuthModal.tsx`.
+- Refactored `frontend/src/components/AuthModal.tsx` into a lightweight tab container delegating strictly to `RegisterForm` and `LoginForm`.
+- Optimized `frontend/src/context/AuthContext.tsx` with lazy state initialization, removing synchronous `setState` in `useEffect` and eliminating all type assertions.
+- Extracted `useAuth` hook into `frontend/src/context/useAuth.ts` to satisfy React Fast Refresh lint guidelines.
+- Verified compilation with `tsc -b && vite build` (Exit Code 0).
+
+## [2026-09-10] Automated Test Suite Setup (Vitest & React Testing Library)
+
+### Additions & Modifications
+- Configured Vitest and React Testing Library in `frontend/vite.config.ts`, `frontend/package.json`, and root `package.json`.
+- Created `frontend/src/test/setup.ts` importing `@testing-library/jest-dom`.
+- Created `frontend/src/test/RegisterForm.test.tsx` containing 9 comprehensive integration tests validating all Story 1 acceptance criteria (form inputs, password type, link to login, front validation, field-by-field API errors, network errors, loading state, and success state).
+- Created `frontend/src/test/authValidation.test.ts` containing 17 unit tests verifying pure validation rules and error mapping.
+- All 26 automated tests pass successfully (`npm test` Exit Code 0).

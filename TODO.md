@@ -15,3 +15,9 @@
 - [x] Sync AuthModal mode state with initialMode prop when opening modal
 - [x] Perform final audit and verify production build readiness
 - [x] Cleanly merge App.tsx conflict and push changes to remote
+- [x] Story 1 (S1 - Inscription): Implement RegisterForm with controlled inputs and front-end validation
+- [x] Story 1 (S1 - Inscription): Implement field-by-field API error display (Zod details & email uniqueness)
+- [x] Story 1 (S1 - Inscription): Secure password handling and strict TypeScript types (0 any, 0 as)
+- [x] Story 1 (S1 - Inscription): Handle 4 UI states (empty, loading, error, success) and switch to login link
+- [x] Story 1 (S1 - Inscription): Verify with automated tests, oxlint, and build
+- [x] Test Suite Setup: Configure Vitest and React Testing Library in frontend and root package.json (26/26 tests passing)

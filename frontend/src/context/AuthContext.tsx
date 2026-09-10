@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useState } from "react";
 
 export interface User {
   id: string;
@@ -6,7 +6,7 @@ export interface User {
   email?: string;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
@@ -14,27 +14,37 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function isValidStoredUser(value: unknown): value is User {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  if (!('id' in value) || !('username' in value)) {
+    return false;
+  }
+  return typeof value.id === 'string' && typeof value.username === 'string';
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const storedToken = localStorage.getItem("token");
+  const [user, setUser] = useState<User | null>(() => {
     const storedUser = localStorage.getItem("user");
-
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse stored user data", e);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+    if (!storedUser) return null;
+    try {
+      const parsed: unknown = JSON.parse(storedUser);
+      if (isValidStoredUser(parsed)) {
+        return parsed;
       }
+      return null;
+    } catch {
+      localStorage.removeItem("user");
+      return null;
     }
-  }, []);
+  });
+
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem("token");
+  });
 
   const login = (newToken: string, newUser: User) => {
     setToken(newToken);
@@ -65,10 +75,5 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export { useAuth } from './useAuth';
+

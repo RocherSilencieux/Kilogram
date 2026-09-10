@@ -5,7 +5,8 @@
     "dev": "npm --prefix frontend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
-    "seed": "npm --prefix backend run seed"
+    "seed": "npm --prefix backend run seed",
+    "test": "npm --prefix frontend run test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

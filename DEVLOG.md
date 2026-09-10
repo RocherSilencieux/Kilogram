@@ -61,3 +61,9 @@
 - Resolved `frontend/src/App.tsx` merge conflict between `dev` branch and `Kilogram/profile` branch.
 - Combined `AuthProvider`, `AuthModal`, tab switcher ("Feed" / "Profil"), `ProfileView`, `PostsPages`, and light/dark theme toggle cleanly.
 - Pushed resolved commits to remote repository (`git push`).
+
+## [2026-09-10] PostCSS Configuration Fix
+
+### Additions & Modifications
+- Created `frontend/postcss.config.js` (`export default {}`) to prevent PostCSS from traversing parent directories outside the repository and encountering invalid JSON syntax errors.
+- Verified production build via `npx vite build` in `frontend/` (Build completed cleanly in 1.62s).

@@ -67,3 +67,9 @@
 ### Additions & Modifications
 - Created `frontend/postcss.config.js` (`export default {}`) to prevent PostCSS from traversing parent directories outside the repository and encountering invalid JSON syntax errors.
 - Verified production build via `npx vite build` in `frontend/` (Build completed cleanly in 1.62s).
+
+## [2026-09-10] App.tsx Restoration & Verification
+
+### Additions & Modifications
+- Restored `frontend/src/App.tsx` containing the Kilogram application structure (AuthProvider, HeaderNav, PostsPages, ProfileView, theme toggle, and AuthModal).
+- Verified Vite build via `npx vite build` in `frontend/` (Built cleanly in 700ms).

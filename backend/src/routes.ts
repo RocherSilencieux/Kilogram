@@ -145,34 +145,45 @@ router.post("/auth/login", authLimiter, (req: Request, res: Response) => {
 
 // get the feed of all posts, most recent first
 async function getPosts(req: Request, res: Response) {
-  const posts = await prisma.post.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-
-  const feed = [];
-
-  for (const post of posts) {
-    // get the author from the database
-    const author = await prisma.user.findUnique({
-      where: { id: post.authorId },
-    });
-    const likeCount = await prisma.like.count({ where: { postId: post.id } });
-    const commentCount = await prisma.comment.count({
-      where: { postId: post.id },
+  try {
+    const posts = await prisma.post.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: { select: { id: true, username: true } },
+        comments: {
+          include: { author: { select: { id: true, username: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+      },
     });
 
-    feed.push({
-      id: post.id,
-      content: post.content,
-      imageUrl: post.imageUrl,
-      created_at: post.createdAt,
-      author: author ? { id: author.id, username: author.username } : null,
-      likeCount,
-      commentCount,
-    });
+    const feed = await Promise.all(
+      posts.map(async (post) => {
+        const likeCount = await prisma.like.count({ where: { postId: post.id } });
+        return {
+          id: post.id,
+          content: post.content,
+          imageUrl: post.imageUrl,
+          createdAt: post.createdAt,
+          created_at: post.createdAt,
+          author: post.author,
+          likeCount,
+          commentCount: post.comments.length,
+          comments: post.comments.map((c) => ({
+            id: c.id,
+            content: c.content,
+            authorName: c.author?.username || "utilisateur",
+            createdAt: c.createdAt,
+          })),
+        };
+      })
+    );
+
+    res.json(feed);
+  } catch (error) {
+    console.error("Erreur getPosts:", error);
+    res.status(500).json({ error: "Erreur serveur lors de la récupération des posts" });
   }
-
-  res.json(feed);
 }
 
 async function handleCreatePost(req: Request, res: Response) {
@@ -195,28 +206,38 @@ async function handleCreatePost(req: Request, res: Response) {
 async function getPostById(req: Request<{ id: string }>, res: Response) {
   const { id } = req.params;
 
-  const post = await prisma.post.findUnique({
-    where: { id },
-    include: {
-      author: { select: { id: true, username: true } },
-      comments: {
-        include: { author: { select: { id: true, username: true } } },
-        orderBy: { createdAt: "asc" },
+  try {
+    const post = await prisma.post.findUnique({
+      where: { id },
+      include: {
+        author: { select: { id: true, username: true } },
+        comments: {
+          include: { author: { select: { id: true, username: true } } },
+          orderBy: { createdAt: "asc" },
+        },
       },
-    },
-  });
+    });
 
-  const likeCount = await prisma.like.count({ where: { postId: id } });
+    if (!post) {
+      return res.status(404).json({ error: "Post non trouvé" });
+    }
 
-  res.json({
-    id: post.id,
-    content: post.content,
-    imageUrl: post.imageUrl,
-    createdAt: post.createdAt,
-    author: post.author,
-    comments: post.comments,
-    likeCount,
-  });
+    const likeCount = await prisma.like.count({ where: { postId: id } });
+
+    res.json({
+      id: post.id,
+      content: post.content,
+      imageUrl: post.imageUrl,
+      createdAt: post.createdAt,
+      created_at: post.createdAt,
+      author: post.author,
+      comments: post.comments,
+      likeCount,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération du post:", error);
+    res.status(500).json({ error: "Erreur serveur lors de la récupération du post" });
+  }
 }
 
 async function deletePost(req: Request<{ id: string }>, res: Response) {
@@ -250,16 +271,30 @@ router.post(
     const { content } = req.body;
     const userId = req.userId;
 
-    const comment = await prisma.comment.create({
-      data: {
-        content,
-        postId: id,
-        authorId: userId,
-      },
-      include: { author: true },
-    });
+    if (!content || typeof content !== "string" || !content.trim()) {
+      return res.status(400).json({ error: "Le contenu du commentaire ne peut pas être vide" });
+    }
 
-    res.json(comment);
+    try {
+      const post = await prisma.post.findUnique({ where: { id } });
+      if (!post) {
+        return res.status(404).json({ error: "Post non trouvé" });
+      }
+
+      const comment = await prisma.comment.create({
+        data: {
+          content: content.trim(),
+          postId: id,
+          authorId: userId,
+        },
+        include: { author: { select: { id: true, username: true } } },
+      });
+
+      res.json(comment);
+    } catch (error) {
+      console.error("Erreur lors de la création du commentaire:", error);
+      res.status(500).json({ error: "Erreur serveur lors de l'ajout du commentaire" });
+    }
   }
 );
 

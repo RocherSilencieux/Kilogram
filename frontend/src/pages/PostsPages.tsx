@@ -30,7 +30,7 @@ export interface Post {
 
 
 // Publications riches pour le fil d'actualité
-const DEMO_FEED_POSTS: Post[] = [
+export const DEMO_FEED_POSTS: Post[] = [
     {
         id: "demo_post_1",
         content: "Magnifique coucher de soleil sur la plage ce soir ! Les reflets orange et violet sont juste magiques. #SunsetVibes #Kilogram #Ocean",
@@ -135,7 +135,7 @@ function formatDateRelative(dateStr: string): string {
 
 const MAX_CONTENT_LENGTH = 280;
 
-export default function PostsPages() {
+export default function PostsPages({ onSelectPost }: { onSelectPost?: (postId: string) => void }) {
     const { token, user } = useAuth();
 
     // Publications
@@ -383,6 +383,11 @@ export default function PostsPages() {
         showToast("Publication créée en direct !");
     };
 
+    const updatePostState = (postId: string, updater: (p: Post) => Post) => {
+        setAllPosts((prev) => prev.map((p) => (p.id === postId ? updater(p) : p)));
+        setDisplayedPosts((prev) => prev.map((p) => (p.id === postId ? updater(p) : p)));
+    };
+
     // Like / Unlike avec animation
     const toggleLike = (postId: string) => {
         const isLiked = likedPostIds.has(postId);
@@ -393,17 +398,10 @@ export default function PostsPages() {
             return next;
         });
 
-        setDisplayedPosts((prev) =>
-            prev.map((p) => {
-                if (p.id === postId) {
-                    return {
-                        ...p,
-                        likeCount: isLiked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1,
-                    };
-                }
-                return p;
-            })
-        );
+        updatePostState(postId, (p) => ({
+            ...p,
+            likeCount: isLiked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1,
+        }));
 
         if (token && isDbConnected) {
             fetch(`${API_URL}/posts/${postId}/like`, {
@@ -437,9 +435,43 @@ export default function PostsPages() {
     };
 
     // Partager
-    const handleShare = (post: Post) => {
+    const handleShare = (_post: Post) => {
         navigator.clipboard?.writeText(window.location.href);
         showToast("Lien de la publication copié dans le presse-papier !");
+    };
+
+    // Ouverture et rafraîchissement dynamique des commentaires
+    const toggleCommentsDrawer = async (postId: string) => {
+        const isOpening = activeCommentPostId !== postId;
+        setActiveCommentPostId(isOpening ? postId : null);
+
+        if (isOpening && isDbConnected) {
+            try {
+                let res = await fetch(`/api/posts/${postId}`).catch(() => null);
+                if (!res || !res.ok) {
+                    res = await fetch(`${API_URL}/posts/${postId}`).catch(() => null);
+                }
+                if (res && res.ok) {
+                    const json = await res.json();
+                    if (json && Array.isArray(json.comments)) {
+                        const fetchedComments: CommentItem[] = json.comments.map((c: any) => ({
+                            id: String(c.id),
+                            content: c.content,
+                            authorName: c.author?.username || "utilisateur",
+                            createdAt: formatDateRelative(c.createdAt || c.created_at),
+                        }));
+
+                        updatePostState(postId, (p) => ({
+                            ...p,
+                            commentCount: typeof json.commentCount === "number" ? json.commentCount : fetchedComments.length,
+                            comments: fetchedComments,
+                        }));
+                    }
+                }
+            } catch {
+                // Ignoré
+            }
+        }
     };
 
     // Ajouter un commentaire
@@ -454,18 +486,11 @@ export default function PostsPages() {
             createdAt: "À l'instant",
         };
 
-        setDisplayedPosts((prev) =>
-            prev.map((p) => {
-                if (p.id === postId) {
-                    return {
-                        ...p,
-                        commentCount: p.commentCount + 1,
-                        comments: [...(p.comments || []), newComment],
-                    };
-                }
-                return p;
-            })
-        );
+        updatePostState(postId, (p) => ({
+            ...p,
+            commentCount: p.commentCount + 1,
+            comments: [...(p.comments || []), newComment],
+        }));
 
         setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
         showToast("Commentaire publié !");
@@ -698,14 +723,26 @@ export default function PostsPages() {
                                             </div>
                                         </div>
 
-                                        <button
-                                            type="button"
-                                            onClick={() => handleShare(post)}
-                                            className="text-xs text-[var(--text-dim)] hover:text-[var(--orange-500)] p-1.5 rounded-lg"
-                                            title="Partager le post"
-                                        >
-                                            🔗 Partager
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {onSelectPost && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onSelectPost(post.id)}
+                                                    className="text-xs font-bold text-[var(--orange-400)] hover:text-orange-300 bg-orange-500/10 hover:bg-orange-500/20 px-2.5 py-1 rounded-lg border border-orange-500/20 transition"
+                                                    title="Ouvrir la page détaillée"
+                                                >
+                                                    Détails →
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleShare(post)}
+                                                className="text-xs text-[var(--text-dim)] hover:text-[var(--orange-500)] p-1.5 rounded-lg"
+                                                title="Partager le post"
+                                            >
+                                                🔗 Partager
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Image avec double-clic pour liker */}
@@ -737,7 +774,11 @@ export default function PostsPages() {
 
                                     {/* Contenu textuel avec hashtags mis en valeur */}
                                     {post.content && (
-                                        <div className="px-5 py-4">
+                                        <div
+                                            className={`px-5 py-4 ${onSelectPost ? "cursor-pointer hover:bg-white/[0.02] transition" : ""}`}
+                                            onClick={() => onSelectPost && onSelectPost(post.id)}
+                                            title={onSelectPost ? "Cliquer pour ouvrir le détail du post" : undefined}
+                                        >
                                             <p className="text-[15px] leading-relaxed text-[var(--text-main)]">
                                                 {renderFormattedText(post.content)}
                                             </p>
@@ -761,9 +802,7 @@ export default function PostsPages() {
                                             {/* Commentaires */}
                                             <button
                                                 type="button"
-                                                onClick={() =>
-                                                    setActiveCommentPostId(isCommentsOpen ? null : post.id)
-                                                }
+                                                onClick={() => toggleCommentsDrawer(post.id)}
                                                 className="feed-action-btn"
                                                 title="Commenter"
                                             >

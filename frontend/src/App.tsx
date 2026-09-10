@@ -1,18 +1,45 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 import PostsPages from './pages/PostsPages';
+import { PostDetailView } from './components/PostDetailView';
 import { ProfileView } from './components/profile/ProfileView';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthModal } from './components/AuthModal';
 
+type RouteState =
+  | { type: 'feed' }
+  | { type: 'profile' }
+  | { type: 'post-detail'; postId: string };
+
+function parseCurrentRoute(): RouteState {
+  const path = window.location.pathname;
+  if (path.startsWith('/posts/') || path.startsWith('/post/')) {
+    const postId = path.replace(/^\/(posts|post)\//, '');
+    if (postId) {
+      return { type: 'post-detail', postId };
+    }
+  }
+  if (path === '/profile') {
+    return { type: 'profile' };
+  }
+  return { type: 'feed' };
+}
+
 interface HeaderNavProps {
-  currentTab: 'feed' | 'profile';
-  onTabChange: (tab: 'feed' | 'profile') => void;
+  currentRoute: RouteState;
+  onNavigateToFeed: () => void;
+  onNavigateToProfile: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
 }
 
-function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: HeaderNavProps) {
+function HeaderNav({
+  currentRoute,
+  onNavigateToFeed,
+  onNavigateToProfile,
+  isDarkMode,
+  onToggleTheme,
+}: HeaderNavProps) {
   const { user, isAuthenticated, logout } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -22,6 +49,9 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
     setIsAuthModalOpen(true);
   };
 
+  const isFeedActive = currentRoute.type === 'feed' || currentRoute.type === 'post-detail';
+  const isProfileActive = currentRoute.type === 'profile';
+
   return (
     <>
       <nav className="site-navbar">
@@ -30,33 +60,32 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
           <div className="flex items-center gap-6">
             <div
               className="flex items-center gap-2 cursor-pointer select-none"
-              onClick={() => onTabChange('feed')}
+              onClick={onNavigateToFeed}
             >
               <span className="brand-gradient-text">Kilogram</span>
             </div>
 
-            {/* Sélecteur d'onglets au style Orange & Violet */}
+            {/* Sélecteur d'onglets */}
             <div className="nav-tabs-pill">
               <button
                 type="button"
-                onClick={() => onTabChange('feed')}
-                className={`nav-tab-btn ${currentTab === 'feed' ? 'active' : ''}`}
+                onClick={onNavigateToFeed}
+                className={`nav-tab-btn ${isFeedActive ? 'active' : ''}`}
               >
                 Fil d'actualité
               </button>
               <button
                 type="button"
-                onClick={() => onTabChange('profile')}
-                className={`nav-tab-btn ${currentTab === 'profile' ? 'active' : ''}`}
+                onClick={onNavigateToProfile}
+                className={`nav-tab-btn ${isProfileActive ? 'active' : ''}`}
               >
                 Profil
               </button>
             </div>
           </div>
 
-          {/* Actions à droite : Thème et Authentification */}
+          {/* Actions à droite */}
           <div className="flex items-center gap-3">
-            {/* Bouton de bascule de Thème (Clair / Sombre) */}
             <button
               type="button"
               onClick={onToggleTheme}
@@ -68,7 +97,6 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
               <span>{isDarkMode ? 'Clair' : 'Sombre'}</span>
             </button>
 
-            {/* Authentification */}
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold px-3 py-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-main)]">
@@ -115,7 +143,7 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
 }
 
 function AppContent() {
-  const [currentTab, setCurrentTab] = useState<'feed' | 'profile'>('feed');
+  const [route, setRoute] = useState<RouteState>(() => parseCurrentRoute());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem('kilogram-theme');
     return saved ? saved === 'dark' : true;
@@ -126,16 +154,57 @@ function AppContent() {
     localStorage.setItem('kilogram-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
+  // Synchronisation avec les boutons Précédent / Suivant du navigateur
+  useEffect(() => {
+    const handlePopState = () => {
+      setRoute(parseCurrentRoute());
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateToFeed = () => {
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+    setRoute({ type: 'feed' });
+  };
+
+  const navigateToProfile = () => {
+    if (window.location.pathname !== '/profile') {
+      window.history.pushState({}, '', '/profile');
+    }
+    setRoute({ type: 'profile' });
+  };
+
+  const navigateToPost = (postId: string) => {
+    const newPath = `/posts/${postId}`;
+    if (window.location.pathname !== newPath) {
+      window.history.pushState({}, '', newPath);
+    }
+    setRoute({ type: 'post-detail', postId });
+  };
+
   return (
     <div className="min-h-screen">
       <HeaderNav
-        currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        currentRoute={route}
+        onNavigateToFeed={navigateToFeed}
+        onNavigateToProfile={navigateToProfile}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
       />
       <main className="py-6 px-4">
-        {currentTab === 'feed' ? <PostsPages /> : <ProfileView />}
+        {route.type === 'feed' && (
+          <PostsPages onSelectPost={navigateToPost} />
+        )}
+        {route.type === 'post-detail' && (
+          <PostDetailView
+            postId={route.postId}
+            onBack={navigateToFeed}
+          />
+        )}
+        {route.type === 'profile' && <ProfileView />}
       </main>
     </div>
   );

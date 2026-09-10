@@ -81,3 +81,13 @@
 - Created `frontend/src/test/RegisterForm.test.tsx` containing 9 comprehensive integration tests validating all Story 1 acceptance criteria (form inputs, password type, link to login, front validation, field-by-field API errors, network errors, loading state, and success state).
 - Created `frontend/src/test/authValidation.test.ts` containing 17 unit tests verifying pure validation rules and error mapping.
 - All 26 automated tests pass successfully (`npm test` Exit Code 0).
+
+## [2026-09-10] Story 1 Component Decoupling & Lint Optimization
+
+### Additions & Modifications
+- Created `frontend/src/components/common/FormField.tsx` extracting label, input, accessibility attributes (`aria-invalid`, `aria-describedby`), and dedicated error message rendering to satisfy Slide 7 ("Un composant = un rôle. Si vous scrollez, découpez").
+- Created `frontend/src/services/auth.service.ts` encapsulating authentication HTTP requests (`registerUser`, `loginUser`) and throwing typed `AuthApiError` with structured field errors.
+- Refactored `RegisterForm.tsx` and `LoginForm.tsx` to consume `FormField` and `auth.service.ts`, drastically reducing boilerplate and ensuring clean single-responsibility components.
+- Separated context definition into `frontend/src/context/authContextDef.ts` to satisfy Vite / React Fast Refresh export constraints.
+- Resolved synchronous `setState` in `ProfileView.tsx` effect using `queueMicrotask`.
+- Verified: 26/26 tests passing, clean build, and 0 warnings / 0 errors on Oxlint (`npm run lint`).

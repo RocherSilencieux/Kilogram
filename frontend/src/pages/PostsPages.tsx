@@ -25,6 +25,7 @@ export interface Post {
     likeCount: number;
     commentCount: number;
     comments?: CommentItem[];
+    isLiked?: boolean;
 }
 
 
@@ -158,7 +159,7 @@ export default function PostsPages() {
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
     // Interactions utilisateur locales
-    const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set(["demo_post_1"]));
+    const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set());
     const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
     const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
     const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
@@ -187,6 +188,7 @@ export default function PostsPages() {
             author: p.author || (p.authorId ? { id: p.authorId, username: "utilisateur" } : { id: "anon", username: "Anonyme" }),
             likeCount: typeof p.likeCount === "number" ? p.likeCount : (Array.isArray(p.likes) ? p.likes.length : 0),
             commentCount: typeof p.commentCount === "number" ? p.commentCount : (Array.isArray(p.comments) ? p.comments.length : 0),
+            isLiked: Boolean(p.isLiked),
             comments: Array.isArray(p.comments)
                 ? p.comments.map((c: any) => ({
                       id: String(c.id),
@@ -205,9 +207,10 @@ export default function PostsPages() {
 
         let liveData: Post[] | null = null;
         let connected = false;
+        const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
         try {
-            const res = await fetch("/api/posts");
+            const res = await fetch("/api/posts", { headers });
             if (res.ok) {
                 const json = await res.json();
                 if (Array.isArray(json) && json.length > 0) {
@@ -221,7 +224,7 @@ export default function PostsPages() {
 
         if (!liveData) {
             try {
-                const res = await fetch(`${API_URL}/posts`);
+                const res = await fetch(`${API_URL}/posts`, { headers });
                 if (res.ok) {
                     const json = await res.json();
                     if (Array.isArray(json) && json.length > 0) {
@@ -242,9 +245,19 @@ export default function PostsPages() {
         setDisplayedPosts(sorted.slice(0, PAGE_SIZE));
         setPage(1);
 
+        if (liveData && liveData.length > 0) {
+            const likedSet = new Set<string>();
+            liveData.forEach((p) => {
+                if (p.isLiked) likedSet.add(p.id);
+            });
+            setLikedPostIds(likedSet);
+        } else if (!connected) {
+            setLikedPostIds(new Set(["demo_post_1"]));
+        }
+
         setLoading(false);
         setRefreshing(false);
-    }, []);
+    }, [token]);
 
     useEffect(() => {
         fetchPosts();
@@ -348,6 +361,7 @@ export default function PostsPages() {
                         likeCount: 0,
                         commentCount: 0,
                         comments: [],
+                        isLiked: false,
                     };
                     setAllPosts((prev) => [newP, ...prev]);
                     setDisplayedPosts((prev) => [newP, ...prev]);
@@ -369,14 +383,14 @@ export default function PostsPages() {
             imageUrl: imagePreview,
             created_at: new Date().toISOString(),
             author: { id: user?.id || "me", username: user?.username || "moi" },
-            likeCount: 1,
+            likeCount: 0,
             commentCount: 0,
             comments: [],
+            isLiked: false,
         };
 
         setAllPosts((prev) => [localPost, ...prev]);
         setDisplayedPosts((prev) => [localPost, ...prev]);
-        setLikedPostIds((prev) => new Set(prev).add(localPost.id));
         handleRemoveImage();
         setContent("");
         setSubmitting(false);
@@ -393,17 +407,20 @@ export default function PostsPages() {
             return next;
         });
 
-        setDisplayedPosts((prev) =>
+        const updatePostLike = (prev: Post[]) =>
             prev.map((p) => {
                 if (p.id === postId) {
                     return {
                         ...p,
                         likeCount: isLiked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1,
+                        isLiked: !isLiked,
                     };
                 }
                 return p;
-            })
-        );
+            });
+
+        setDisplayedPosts(updatePostLike);
+        setAllPosts(updatePostLike);
 
         if (token && isDbConnected) {
             fetch(`${API_URL}/posts/${postId}/like`, {

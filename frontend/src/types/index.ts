@@ -15,6 +15,7 @@ export interface UserPost {
   created_at?: string;
   likeCount?: number;
   commentCount?: number;
+  isLiked?: boolean;
   author?: {
     id: string;
     username: string;

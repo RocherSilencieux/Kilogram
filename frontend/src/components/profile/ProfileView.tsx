@@ -48,7 +48,11 @@ export const ProfileView: React.FC = () => {
     if (!selectedUserId) return;
 
     let isMounted = true;
-    setIsLoadingUser(true);
+    queueMicrotask(() => {
+      if (isMounted) {
+        setIsLoadingUser(true);
+      }
+    });
 
     async function loadUser() {
       const [profileData, postsData] = await Promise.all([

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import './App.css';
 import PostsPages from './pages/PostsPages';
 import { ProfileView } from './components/profile/ProfileView';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import { AuthModal } from './components/AuthModal';
 
 interface HeaderNavProps {

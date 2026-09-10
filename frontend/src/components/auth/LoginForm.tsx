@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { isRecord, isRegisterSuccessResponse } from '../../types/auth';
+import { useAuth } from '../../context/useAuth';
+import { FormField } from '../common/FormField';
+import { loginUser, AuthApiError } from '../../services/auth.service';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -32,51 +33,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     setLoading(true);
 
     try {
-      let response: Response;
-      const payload = JSON.stringify({ email: trimmedEmail, password });
-
-      try {
-        response = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      } catch {
-        response = await fetch('http://localhost:3000/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      }
-
-      const data: unknown = await response.json();
-
-      if (!response.ok) {
-        let msg = 'Identifiants invalides ou erreur de connexion.';
-        if (isRecord(data)) {
-          const raw = data['error'] ?? data['message'];
-          if (typeof raw === 'string' && raw.trim().length > 0) {
-            msg = raw;
-          }
-        }
-        setError(msg);
-        return;
-      }
-
-      if (!isRegisterSuccessResponse(data)) {
-        setError('Format de réponse invalide du serveur.');
-        return;
-      }
-
+      const data = await loginUser(trimmedEmail, password);
       login(data.token, {
         id: data.user.id,
         username: data.user.username,
         email: data.user.email,
       });
-
       onSuccess();
-    } catch {
-      setError('Impossible de joindre le serveur. Veuillez réessayer ultérieurement.');
+    } catch (err: unknown) {
+      if (err instanceof AuthApiError) {
+        setError(err.fieldErrors.general || err.message);
+      } else {
+        setError('Impossible de joindre le serveur. Veuillez réessayer ultérieurement.');
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +63,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       {error && (
         <div
           role="alert"
-          className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5"
+          className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-start gap-2.5 animate-shake"
         >
           <svg className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -104,39 +73,29 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="login-email" className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Adresse email
-          </label>
-          <input
-            id="login-email"
-            type="email"
-            autoComplete="email"
-            value={email}
-            disabled={loading}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="alice@test.com"
-            required
-            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition disabled:bg-gray-100"
-          />
-        </div>
+        <FormField
+          id="login-email"
+          label="Adresse email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="alice@test.com"
+          autoComplete="email"
+          required
+          disabled={loading}
+        />
 
-        <div>
-          <label htmlFor="login-password" className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Mot de passe
-          </label>
-          <input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            disabled={loading}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition disabled:bg-gray-100"
-          />
-        </div>
+        <FormField
+          id="login-password"
+          label="Mot de passe"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          placeholder="••••••••"
+          autoComplete="current-password"
+          required
+          disabled={loading}
+        />
 
         <div className="pt-2 flex items-center justify-between gap-3">
           {onCancel ? (

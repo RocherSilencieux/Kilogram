@@ -1,20 +1,9 @@
-import React, { createContext, useState } from "react";
+import React, { useState } from "react";
+import { AuthContext } from "./authContextDef";
+import type { User, AuthContextType } from "./authContextDef";
 
-export interface User {
-  id: string;
-  username: string;
-  email?: string;
-}
-
-export interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  login: (token: string, user: User) => void;
-  logout: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export type { User, AuthContextType };
+export { AuthContext } from "./authContextDef";
 
 function isValidStoredUser(value: unknown): value is User {
   if (typeof value !== 'object' || value === null) {
@@ -74,6 +63,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     </AuthContext.Provider>
   );
 };
-
-export { useAuth } from './useAuth';
-

@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import type {
-  RegisterFormData,
-  RegisterFieldErrors,
-} from '../../types/auth';
-import { isRegisterSuccessResponse } from '../../types/auth';
+import { useAuth } from '../../context/useAuth';
+import type { RegisterFormData, RegisterFieldErrors } from '../../types/auth';
 import {
   validateEmail,
   validateUsername,
   validatePassword,
   validateRegisterForm,
-  parseRegisterApiError,
 } from '../../utils/authValidation';
+import { FormField } from '../common/FormField';
+import { registerUser, AuthApiError } from '../../services/auth.service';
 
 interface RegisterFormProps {
   onSuccess: () => void;
@@ -46,7 +43,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
   const handleInputChange = (field: keyof RegisterFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
-    // Reset error for current field as user types
     if (fieldErrors[field] || fieldErrors.general) {
       setFieldErrors((prev) => {
         const updated = { ...prev };
@@ -61,13 +57,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     setTouched((prev) => ({ ...prev, [field]: true }));
 
     let error: string | null = null;
-    if (field === 'email') {
-      error = validateEmail(formData.email);
-    } else if (field === 'username') {
-      error = validateUsername(formData.username);
-    } else if (field === 'password') {
-      error = validatePassword(formData.password);
-    }
+    if (field === 'email') error = validateEmail(formData.email);
+    else if (field === 'username') error = validateUsername(formData.username);
+    else if (field === 'password') error = validatePassword(formData.password);
 
     if (error) {
       setFieldErrors((prev) => ({ ...prev, [field]: error }));
@@ -78,11 +70,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     e.preventDefault();
 
     // 1. Mark all fields as touched
-    setTouched({
-      email: true,
-      username: true,
-      password: true,
-    });
+    setTouched({ email: true, username: true, password: true });
 
     // 2. Client-side validation (Champs contrôlés, validation front)
     const frontErrors = validateRegisterForm(formData);
@@ -97,70 +85,31 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
     setFieldErrors({});
 
     try {
-      // Direct call with proxy fallback
-      let response: Response;
-      const payload = JSON.stringify({
-        email: formData.email.trim(),
-        username: formData.username.trim(),
-        password: formData.password,
-      });
-
-      try {
-        response = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      } catch {
-        response = await fetch('http://localhost:3000/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-      }
-
-      const responseJson: unknown = await response.json();
-
-      if (!response.ok) {
-        // Erreurs API affichées champ par champ
-        const parsedErrors = parseRegisterApiError(responseJson);
-        setFieldErrors(parsedErrors);
-        setStatus('error');
-        return;
-      }
-
-      // Données API validées avant usage via strict type guard
-      if (!isRegisterSuccessResponse(responseJson)) {
-        setFieldErrors({
-          general: 'Réponse inattendue du serveur lors de la validation du compte.',
-        });
-        setStatus('error');
-        return;
-      }
+      const response = await registerUser(formData);
 
       // 4. UI State: Success (Mot de passe jamais réaffiché)
       setStatus('success');
-      setSuccessMessage(`Bienvenue @${responseJson.user.username} ! Votre compte a été créé avec succès.`);
-      
-      // Clear sensitive password field immediately
+      setSuccessMessage(`Bienvenue @${response.user.username} ! Votre compte a été créé avec succès.`);
       setFormData((prev) => ({ ...prev, password: '' }));
 
-      // Authenticate user in session context
-      login(responseJson.token, {
-        id: responseJson.user.id,
-        username: responseJson.user.username,
-        email: responseJson.user.email,
+      login(response.token, {
+        id: response.user.id,
+        username: response.user.username,
+        email: response.user.email,
       });
 
-      // Brief delay to allow user to visually see success state before closing
       setTimeout(() => {
         onSuccess();
       }, 1000);
-    } catch {
+    } catch (err: unknown) {
       setStatus('error');
-      setFieldErrors({
-        general: 'Impossible de contacter le serveur. Vérifiez votre connexion internet.',
-      });
+      if (err instanceof AuthApiError) {
+        setFieldErrors(err.fieldErrors);
+      } else {
+        setFieldErrors({
+          general: 'Impossible de contacter le serveur. Vérifiez votre connexion internet.',
+        });
+      }
     }
   };
 
@@ -203,99 +152,52 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({
       )}
 
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        {/* Champ : Email */}
-        <div>
-          <label htmlFor="register-email" className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Adresse email <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="register-email"
-            type="email"
-            autoComplete="email"
-            disabled={isLoading || isSuccess}
-            value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            onBlur={() => handleBlur('email')}
-            placeholder="alice@exemple.com"
-            aria-invalid={!!fieldErrors.email}
-            aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
-            className={`w-full px-3.5 py-2.5 text-sm border rounded-xl transition focus:outline-none focus:ring-2 ${
-              fieldErrors.email && touched.email
-                ? 'border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-200'
-                : 'border-gray-200 bg-white focus:border-purple-500 focus:ring-purple-500/20'
-            } disabled:bg-gray-100 disabled:cursor-not-allowed`}
-          />
-          {fieldErrors.email && touched.email && (
-            <p id="register-email-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1 font-medium">
-              <span aria-hidden="true">•</span>
-              {fieldErrors.email}
-            </p>
-          )}
-        </div>
+        <FormField
+          id="register-email"
+          label="Adresse email"
+          type="email"
+          value={formData.email}
+          onChange={(val) => handleInputChange('email', val)}
+          onBlur={() => handleBlur('email')}
+          error={fieldErrors.email}
+          touched={touched.email}
+          placeholder="alice@exemple.com"
+          autoComplete="email"
+          required
+          disabled={isLoading || isSuccess}
+        />
 
-        {/* Champ : Nom d'utilisateur */}
-        <div>
-          <label htmlFor="register-username" className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Nom d'utilisateur <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="register-username"
-            type="text"
-            autoComplete="username"
-            disabled={isLoading || isSuccess}
-            value={formData.username}
-            onChange={(e) => handleInputChange('username', e.target.value)}
-            onBlur={() => handleBlur('username')}
-            placeholder="Ex: alex_dev (au moins 3 caractères)"
-            aria-invalid={!!fieldErrors.username}
-            aria-describedby={fieldErrors.username ? 'register-username-error' : undefined}
-            className={`w-full px-3.5 py-2.5 text-sm border rounded-xl transition focus:outline-none focus:ring-2 ${
-              fieldErrors.username && touched.username
-                ? 'border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-200'
-                : 'border-gray-200 bg-white focus:border-purple-500 focus:ring-purple-500/20'
-            } disabled:bg-gray-100 disabled:cursor-not-allowed`}
-          />
-          {fieldErrors.username && touched.username && (
-            <p id="register-username-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1 font-medium">
-              <span aria-hidden="true">•</span>
-              {fieldErrors.username}
-            </p>
-          )}
-        </div>
+        <FormField
+          id="register-username"
+          label="Nom d'utilisateur"
+          type="text"
+          value={formData.username}
+          onChange={(val) => handleInputChange('username', val)}
+          onBlur={() => handleBlur('username')}
+          error={fieldErrors.username}
+          touched={touched.username}
+          placeholder="Ex: alex_dev (au moins 3 caractères)"
+          autoComplete="username"
+          required
+          disabled={isLoading || isSuccess}
+        />
 
-        {/* Champ : Mot de passe */}
-        <div>
-          <label htmlFor="register-password" className="block text-xs font-semibold text-gray-700 mb-1.5">
-            Mot de passe <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="register-password"
-            type="password"
-            autoComplete="new-password"
-            disabled={isLoading || isSuccess}
-            value={formData.password}
-            onChange={(e) => handleInputChange('password', e.target.value)}
-            onBlur={() => handleBlur('password')}
-            placeholder="Au moins 8 caractères"
-            aria-invalid={!!fieldErrors.password}
-            aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
-            className={`w-full px-3.5 py-2.5 text-sm border rounded-xl transition focus:outline-none focus:ring-2 ${
-              fieldErrors.password && touched.password
-                ? 'border-red-400 bg-red-50/20 focus:border-red-500 focus:ring-red-200'
-                : 'border-gray-200 bg-white focus:border-purple-500 focus:ring-purple-500/20'
-            } disabled:bg-gray-100 disabled:cursor-not-allowed`}
-          />
-          {fieldErrors.password && touched.password ? (
-            <p id="register-password-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1 font-medium">
-              <span aria-hidden="true">•</span>
-              {fieldErrors.password}
-            </p>
-          ) : (
-            <p className="mt-1 text-[11px] text-gray-400">8 caractères minimum.</p>
-          )}
-        </div>
+        <FormField
+          id="register-password"
+          label="Mot de passe"
+          type="password"
+          value={formData.password}
+          onChange={(val) => handleInputChange('password', val)}
+          onBlur={() => handleBlur('password')}
+          error={fieldErrors.password}
+          touched={touched.password}
+          placeholder="Au moins 8 caractères"
+          autoComplete="new-password"
+          required
+          disabled={isLoading || isSuccess}
+          helperText="8 caractères minimum."
+        />
 
-        {/* Boutons d'action */}
         <div className="pt-2 flex items-center justify-between gap-3">
           {onCancel ? (
             <button

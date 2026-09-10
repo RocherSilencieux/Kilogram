@@ -54,3 +54,10 @@
 ### Additions & Modifications
 - Performed a full codebase audit on all modified/added files. Verified strict TypeScript type safety, error boundaries, CORS fallbacks, and state persistence.
 - Verified both frontend (`npx tsc -b`) and backend (`npm run build`) builds cleanly with zero errors (Exit Code 0).
+
+## [2026-09-10] App.tsx Git Merge & Remote Push
+
+### Additions & Modifications
+- Resolved `frontend/src/App.tsx` merge conflict between `dev` branch and `Kilogram/profile` branch.
+- Combined `AuthProvider`, `AuthModal`, tab switcher ("Feed" / "Profil"), `ProfileView`, `PostsPages`, and light/dark theme toggle cleanly.
+- Pushed resolved commits to remote repository (`git push`).

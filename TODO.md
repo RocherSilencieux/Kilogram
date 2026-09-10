@@ -14,3 +14,4 @@
 - [x] Fix CORS issue in backend/.env and backend/src/index.ts
 - [x] Sync AuthModal mode state with initialMode prop when opening modal
 - [x] Perform final audit and verify production build readiness
+- [x] Cleanly merge App.tsx conflict and push changes to remote

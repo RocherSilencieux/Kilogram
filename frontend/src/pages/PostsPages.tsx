@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = "http://localhost:3000";
 const PAGE_SIZE = 15;
@@ -67,6 +68,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB max
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export default function PostsPages() {
+    const { token } = useAuth();
     // Liste totale de tous les posts récupérés (triée décroissant)
     const [allPosts, setAllPosts] = useState<Post[]>([]);
     // Posts actuellement affichés dans le DOM (par tranches)
@@ -265,7 +267,6 @@ export default function PostsPages() {
                 formData.append("image", imageFile);
             }
 
-            const token = localStorage.getItem("token");
 
             const res = await fetch(`${API_URL}/posts`, {
                 method: "POST",
@@ -307,7 +308,6 @@ export default function PostsPages() {
 
     // 5. Like d'un post
     const handleLike = async (postId: string) => {
-        const token = localStorage.getItem("token");
         if (!token) {
             alert("Connectez-vous pour liker !");
             return;

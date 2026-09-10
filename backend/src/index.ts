@@ -14,15 +14,8 @@ if (!fs.existsSync(uploadsDir)) {
 
 const app = express();
 
-const rawFrontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-const frontendUrl = rawFrontendUrl.replace(/\/$/, "");
-
-// Restrict CORS to the frontend domain (tolerant to trailing slash)
-app.use(
-  cors({
-    origin: [frontendUrl, `${frontendUrl}/`],
-  })
-);
+//Restrict CORS to the frontend domain with dev fallback
+app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:5173" }));
 app.use(express.json());
 app.use("/uploads", express.static(uploadsDir));
 app.use(express.static(path.join(__dirname, "..", "public")));

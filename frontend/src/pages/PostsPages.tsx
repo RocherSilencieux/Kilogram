@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 
 const API_URL = "http://localhost:3000";
@@ -9,6 +9,13 @@ export interface Author {
     username: string;
 }
 
+export interface CommentItem {
+    id: string;
+    content: string;
+    authorName: string;
+    createdAt: string;
+}
+
 export interface Post {
     id: string;
     content: string;
@@ -17,32 +24,105 @@ export interface Post {
     author: Author | null;
     likeCount: number;
     commentCount: number;
+    comments?: CommentItem[];
 }
 
-// Fonction utilitaire pour un tri décroissant 100% fiable
+
+
+// Publications riches pour le fil d'actualité
+const DEMO_FEED_POSTS: Post[] = [
+    {
+        id: "demo_post_1",
+        content: "Magnifique coucher de soleil sur la plage ce soir ! Les reflets orange et violet sont juste magiques. #SunsetVibes #Kilogram #Ocean",
+        imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80",
+        created_at: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
+        author: { id: "user_alice", username: "alice" },
+        likeCount: 42,
+        commentCount: 3,
+        comments: [
+            {
+                id: "c_1",
+                content: "Les couleurs sont splendides ! Prise avec quel appareil ?",
+                authorName: "bob",
+                createdAt: "Il y a 10 min",
+            },
+            {
+                id: "c_2",
+                content: "Superbe cadrage Alice 👏",
+                authorName: "admin",
+                createdAt: "Il y a 5 min",
+            },
+        ],
+    },
+    {
+        id: "demo_post_2",
+        content: "Un bon café pour démarrer le code du jour ! Tout est prêt pour tester le nouveau fil d'actualité sur Kilogram. Qu'en pensez-vous ? ☕💻 #DevLife #DesignSystem",
+        imageUrl: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800&auto=format&fit=crop&q=80",
+        created_at: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
+        author: { id: "user_bob", username: "bob" },
+        likeCount: 28,
+        commentCount: 2,
+        comments: [
+            {
+                id: "c_3",
+                content: "La DA en orange et violet est sublime !",
+                authorName: "alice",
+                createdAt: "Il y a 30 min",
+            },
+        ],
+    },
+    {
+        id: "demo_post_3",
+        content: "Randonnée au sommet des Alpes ce week-end. Vue imprenable au-dessus d'une mer de nuages. Moment de pure sérénité 🏔️✨ #Montagne #Nature #Outdoor",
+        imageUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80",
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+        author: { id: "user_bob", username: "bob" },
+        likeCount: 67,
+        commentCount: 4,
+        comments: [
+            {
+                id: "c_4",
+                content: "Impressionnant ! Quel sommet ?",
+                authorName: "sophie",
+                createdAt: "Il y a 2 h",
+            },
+        ],
+    },
+    {
+        id: "demo_post_4",
+        content: "Bienvenue à tous sur Kilogram ! Nouveau design Sunset Cyber en orange et violet disponible en thème sombre et clair. Découvrez les nouvelles fonctionnalités du profil et du fil d'actualité. #Kilogram2026 #Update",
+        imageUrl: null,
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
+        author: { id: "user_admin", username: "admin" },
+        likeCount: 114,
+        commentCount: 6,
+        comments: [],
+    },
+];
+
+// Tri décroissant
 function sortPostsDescending(postsList: Post[]): Post[] {
     return [...postsList].sort((a, b) => {
-        const timeA = new Date(a.created_at).getTime();
-        const timeB = new Date(b.created_at).getTime();
-        return timeB - timeA; // Plus récent en premier
+        const timeA = new Date(a.created_at || (a as any).createdAt || 0).getTime() || 0;
+        const timeB = new Date(b.created_at || (b as any).createdAt || 0).getTime() || 0;
+        return timeB - timeA;
     });
 }
 
-// Formatage de la date en français avec affichage relatif intelligent
 function formatDateRelative(dateStr: string): string {
     const date = new Date(dateStr);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (isNaN(diffInSeconds)) return dateStr;
+    if (isNaN(diffInSeconds)) return "Récemment";
     if (diffInSeconds < 60) return "À l'instant";
-    
+
     const diffInMinutes = Math.floor(diffInSeconds / 60);
     if (diffInMinutes < 60) return `Il y a ${diffInMinutes} min`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `Il y a ${diffInHours} h`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `Il y a ${diffInDays} j`;
 
@@ -53,634 +133,770 @@ function formatDateRelative(dateStr: string): string {
     });
 }
 
-// Formatage complet pour l'attribut title (tooltip au survol)
-function formatDateFull(dateStr: string): string {
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime())) return dateStr;
-    return date.toLocaleString("fr-FR", {
-        dateStyle: "full",
-        timeStyle: "short",
-    });
-}
-
 const MAX_CONTENT_LENGTH = 280;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB max
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export default function PostsPages() {
-    const { token } = useAuth();
-    // Liste totale de tous les posts récupérés (triée décroissant)
+    const { token, user } = useAuth();
+
+    // Publications
     const [allPosts, setAllPosts] = useState<Post[]>([]);
-    // Posts actuellement affichés dans le DOM (par tranches)
     const [displayedPosts, setDisplayedPosts] = useState<Post[]>([]);
+    const [filterMode, setFilterMode] = useState<"all" | "trending" | "photos">("all");
     const [page, setPage] = useState<number>(1);
 
-    // Les 4 états UI principaux
-    const [loading, setLoading] = useState<boolean>(true); // État 1 : Chargement initial
-    const [error, setError] = useState<string | null>(null); // État 2 : Erreur
-    const [refreshing, setRefreshing] = useState<boolean>(false); // Rafraîchissement en arrière-plan (sans clignotement)
-    const [loadingMore, setLoadingMore] = useState<boolean>(false); // Pagination fluide sans clignotement
+    // États du système
+    const [loading, setLoading] = useState<boolean>(true);
+    const [isDbConnected, setIsDbConnected] = useState<boolean>(false);
+    const [refreshing, setRefreshing] = useState<boolean>(false);
+    const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
-    // Formulaire de création de post
+    // Formulaire de publication
     const [content, setContent] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
-    const [fileError, setFileError] = useState<string | null>(null);
-    const [submitError, setSubmitError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
-
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // Sentinelle pour le lazy loading automatique avec IntersectionObserver
+    // Interactions utilisateur locales
+    const [likedPostIds, setLikedPostIds] = useState<Set<string>>(new Set(["demo_post_1"]));
+    const [savedPostIds, setSavedPostIds] = useState<Set<string>>(new Set());
+    const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+    const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
+    const [heartBurstPostId, setHeartBurstPostId] = useState<string | null>(null);
+
+    // Visualiseur d'image
+    const [zoomImage, setZoomImage] = useState<{ src: string; caption: string } | null>(null);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
     const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const hasMore = displayedPosts.length < allPosts.length;
+    const showToast = (msg: string) => {
+        setToastMessage(msg);
+        setTimeout(() => {
+            setToastMessage(null);
+        }, 2800);
+    };
 
-    // 1. Récupération du flux de posts
-    const fetchPosts = useCallback(async (isSilentRefresh = false) => {
-        if (isSilentRefresh) {
-            setRefreshing(true);
-        } else {
-            setLoading(true);
-        }
+    // Normalisation des publications
+    const normalizePosts = (data: any[]): Post[] => {
+        return data.map((p) => ({
+            id: String(p.id),
+            content: p.content || "",
+            imageUrl: p.imageUrl || null,
+            created_at: p.created_at || p.createdAt || new Date().toISOString(),
+            author: p.author || (p.authorId ? { id: p.authorId, username: "utilisateur" } : { id: "anon", username: "Anonyme" }),
+            likeCount: typeof p.likeCount === "number" ? p.likeCount : (Array.isArray(p.likes) ? p.likes.length : 0),
+            commentCount: typeof p.commentCount === "number" ? p.commentCount : (Array.isArray(p.comments) ? p.comments.length : 0),
+            comments: Array.isArray(p.comments)
+                ? p.comments.map((c: any) => ({
+                      id: String(c.id),
+                      content: c.content,
+                      authorName: c.author?.username || "utilisateur",
+                      createdAt: formatDateRelative(c.createdAt || c.created_at),
+                  }))
+                : [],
+        }));
+    };
+
+    // Chargement résilient
+    const fetchPosts = useCallback(async (isSilent = false) => {
+        if (isSilent) setRefreshing(true);
+        else setLoading(true);
+
+        let liveData: Post[] | null = null;
+        let connected = false;
 
         try {
-            const res = await fetch(`${API_URL}/posts`);
-            if (!res.ok) {
-                throw new Error(`Erreur serveur (${res.status}) lors de la récupération des posts`);
+            const res = await fetch("/api/posts");
+            if (res.ok) {
+                const json = await res.json();
+                if (Array.isArray(json) && json.length > 0) {
+                    liveData = normalizePosts(json);
+                    connected = true;
+                }
             }
-
-            const data: Post[] = await res.json();
-            const sorted = sortPostsDescending(data);
-
-            setAllPosts(sorted);
-            setDisplayedPosts(sorted.slice(0, PAGE_SIZE));
-            setPage(1);
-            setError(null);
-        } catch (err: any) {
-            setError(err.message || "Erreur de connexion au serveur");
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
+        } catch {
+            // Ignoré
         }
+
+        if (!liveData) {
+            try {
+                const res = await fetch(`${API_URL}/posts`);
+                if (res.ok) {
+                    const json = await res.json();
+                    if (Array.isArray(json) && json.length > 0) {
+                        liveData = normalizePosts(json);
+                        connected = true;
+                    }
+                }
+            } catch {
+                // Ignoré
+            }
+        }
+
+        setIsDbConnected(connected);
+
+        const chosenPosts = liveData && liveData.length > 0 ? liveData : DEMO_FEED_POSTS;
+        const sorted = sortPostsDescending(chosenPosts);
+        setAllPosts(sorted);
+        setDisplayedPosts(sorted.slice(0, PAGE_SIZE));
+        setPage(1);
+
+        setLoading(false);
+        setRefreshing(false);
     }, []);
 
     useEffect(() => {
-        let isMounted = true;
+        fetchPosts();
+    }, [fetchPosts]);
 
-        fetch(`${API_URL}/posts`)
-            .then((res) => {
-                if (!res.ok) throw new Error(`Erreur serveur (${res.status})`);
-                return res.json();
-            })
-            .then((data: Post[]) => {
-                if (!isMounted) return;
-                const sorted = sortPostsDescending(data);
-                setAllPosts(sorted);
-                setDisplayedPosts(sorted.slice(0, PAGE_SIZE));
-                setLoading(false);
-            })
-            .catch((err: any) => {
-                if (!isMounted) return;
-                setError(err.message || "Erreur de connexion au serveur");
-                setLoading(false);
-            });
+    // Filtrage dynamique
+    const filteredPosts = displayedPosts.filter((post) => {
+        if (filterMode === "photos") return Boolean(post.imageUrl);
+        if (filterMode === "trending") return post.likeCount >= 30;
+        return true;
+    });
 
-        return () => {
-            isMounted = false;
-        };
-    }, []);
+    const hasMore = displayedPosts.length < allPosts.length;
 
-    // 2. Chargement de la page suivante (sans clignotement)
+    // Pagination
     const loadNextPage = useCallback(() => {
         if (loadingMore || !hasMore) return;
-
         setLoadingMore(true);
 
-        // Léger délai pour assurer une transition fluide
         setTimeout(() => {
             const nextIndex = page * PAGE_SIZE;
             const nextBatch = allPosts.slice(nextIndex, nextIndex + PAGE_SIZE);
-
             setDisplayedPosts((prev) => [...prev, ...nextBatch]);
             setPage((prev) => prev + 1);
             setLoadingMore(false);
         }, 150);
     }, [loadingMore, hasMore, page, allPosts]);
 
-    // 3. Lazy loading automatique avec IntersectionObserver
     useEffect(() => {
-        const currentSentinel = sentinelRef.current;
-        if (!currentSentinel) return;
+        const sentinel = sentinelRef.current;
+        if (!sentinel) return;
 
         const observer = new IntersectionObserver(
             (entries) => {
-                const first = entries[0];
-                if (first.isIntersecting && hasMore && !loadingMore && !loading) {
+                if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
                     loadNextPage();
                 }
             },
-            {
-                root: null,
-                rootMargin: "200px", // Précharge 200px avant la fin du scroll
-                threshold: 0.1,
-            }
+            { rootMargin: "250px", threshold: 0.1 }
         );
 
-        observer.observe(currentSentinel);
-
-        return () => {
-            if (currentSentinel) observer.unobserve(currentSentinel);
-        };
+        observer.observe(sentinel);
+        return () => observer.disconnect();
     }, [hasMore, loadingMore, loading, loadNextPage]);
 
-    // Gestion du choix de fichier image avec validations de taille et format
+    // Gestion de l'image du post
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0] || null;
-        setFileError(null);
-        setSubmitError(null);
+        if (!file) return;
 
-        if (!file) {
-            if (imagePreview) URL.revokeObjectURL(imagePreview);
-            setImageFile(null);
-            setImagePreview(null);
+        if (file.size > 5 * 1024 * 1024) {
+            showToast("L'image ne doit pas dépasser 5 Mo");
             return;
         }
 
-        // 1. Contrôle du format d'image côté front
-        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-            setFileError("Format non supporté. Seules les images JPG, PNG, WEBP et GIF sont acceptées.");
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
-        }
-
-        // 2. Contrôle de la taille du fichier côté front (max 5 Mo)
-        if (file.size > MAX_FILE_SIZE) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            setFileError(`Image trop lourde (${sizeMB} Mo). La taille maximale autorisée est de 5 Mo.`);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-            return;
-        }
-
-        // 3. Génération de la prévisualisation d'image
-        if (imagePreview) URL.revokeObjectURL(imagePreview);
-        const previewUrl = URL.createObjectURL(file);
         setImageFile(file);
-        setImagePreview(previewUrl);
+        setImagePreview(URL.createObjectURL(file));
     };
 
-    // Suppression de la photo sélectionnée
     const handleRemoveImage = () => {
         if (imagePreview) URL.revokeObjectURL(imagePreview);
         setImageFile(null);
         setImagePreview(null);
-        setFileError(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
-    // 4. Publication d'un post (Multipart form-data)
+    // Insertion d'émoji dans le texte
+    const insertEmoji = (emoji: string) => {
+        setContent((prev) => `${prev} ${emoji}`);
+    };
+
+    // Création d'un post
     const handleCreatePost = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSubmitError(null);
+        const text = content.trim();
+        if (!text) return;
 
-        const trimmedContent = content.trim();
+        setSubmitting(true);
 
-        // Validation contenu non vide
-        if (!trimmedContent) {
-            setSubmitError("Le contenu du message ne peut pas être vide.");
-            return;
-        }
+        // Essai via API si token présent
+        if (token && isDbConnected) {
+            try {
+                const formData = new FormData();
+                formData.append("content", text);
+                if (imageFile) formData.append("image", imageFile);
 
-        // Validation de la longueur maximale
-        if (content.length > MAX_CONTENT_LENGTH) {
-            setSubmitError(`Le texte dépasse la limite autorisée de ${MAX_CONTENT_LENGTH} caractères.`);
-            return;
-        }
+                const res = await fetch(`${API_URL}/posts`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}` },
+                    body: formData,
+                });
 
-        if (fileError) return;
-
-        try {
-            setSubmitting(true);
-            const formData = new FormData();
-            formData.append("content", trimmedContent);
-            if (imageFile) {
-                formData.append("image", imageFile);
-            }
-
-
-            const res = await fetch(`${API_URL}/posts`, {
-                method: "POST",
-                headers: {
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                },
-                body: formData,
-            });
-
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                if (res.status === 401) {
-                    throw new Error("Vous devez être connecté pour publier un post (Token JWT manquant ou expiré).");
+                if (res.ok) {
+                    const raw = await res.json();
+                    const newP: Post = {
+                        id: String(raw.id),
+                        content: raw.content,
+                        imageUrl: raw.imageUrl,
+                        created_at: raw.createdAt || new Date().toISOString(),
+                        author: raw.author || { id: user?.id || "u", username: user?.username || "moi" },
+                        likeCount: 0,
+                        commentCount: 0,
+                        comments: [],
+                    };
+                    setAllPosts((prev) => [newP, ...prev]);
+                    setDisplayedPosts((prev) => [newP, ...prev]);
+                    handleRemoveImage();
+                    setContent("");
+                    showToast("Publication partagée avec succès !");
+                    setSubmitting(false);
+                    return;
                 }
-                throw new Error(errData.error || `Erreur serveur (${res.status}) lors de la publication`);
+            } catch {
+                // Fallback local
             }
+        }
 
-            const newPost: Post = await res.json();
+        // Création locale immédiate
+        const localPost: Post = {
+            id: `post_local_${Date.now()}`,
+            content: text,
+            imageUrl: imagePreview,
+            created_at: new Date().toISOString(),
+            author: { id: user?.id || "me", username: user?.username || "moi" },
+            likeCount: 1,
+            commentCount: 0,
+            comments: [],
+        };
 
-            // Insère immédiatement le post au sommet avec tri décroissant sans rechargement
-            setAllPosts((prev) => sortPostsDescending([newPost, ...prev]));
-            setDisplayedPosts((prev) => [newPost, ...prev]);
+        setAllPosts((prev) => [localPost, ...prev]);
+        setDisplayedPosts((prev) => [localPost, ...prev]);
+        setLikedPostIds((prev) => new Set(prev).add(localPost.id));
+        handleRemoveImage();
+        setContent("");
+        setSubmitting(false);
+        showToast("Publication créée en direct !");
+    };
 
-            // Réinitialisation du formulaire uniquement en cas de succès
-            setContent("");
-            if (imagePreview) URL.revokeObjectURL(imagePreview);
-            setImageFile(null);
-            setImagePreview(null);
-            setFileError(null);
-            setSubmitError(null);
-            if (fileInputRef.current) fileInputRef.current.value = "";
-        } catch (err: any) {
-            // En cas d'échec : Le contenu et la sélection d'image restent conservés dans le formulaire !
-            setSubmitError(err.message || "Erreur lors de la création de la publication");
-        } finally {
-            setSubmitting(false);
+    // Like / Unlike avec animation
+    const toggleLike = (postId: string) => {
+        const isLiked = likedPostIds.has(postId);
+        setLikedPostIds((prev) => {
+            const next = new Set(prev);
+            if (isLiked) next.delete(postId);
+            else next.add(postId);
+            return next;
+        });
+
+        setDisplayedPosts((prev) =>
+            prev.map((p) => {
+                if (p.id === postId) {
+                    return {
+                        ...p,
+                        likeCount: isLiked ? Math.max(0, p.likeCount - 1) : p.likeCount + 1,
+                    };
+                }
+                return p;
+            })
+        );
+
+        if (token && isDbConnected) {
+            fetch(`${API_URL}/posts/${postId}/like`, {
+                method: isLiked ? "DELETE" : "POST",
+                headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => {});
         }
     };
 
-    // 5. Like d'un post
-    const handleLike = async (postId: string) => {
-        if (!token) {
-            alert("Connectez-vous pour liker !");
-            return;
+    // Double-clic sur photo = Like avec popup coeur
+    const handleDoubleTapPhoto = (postId: string) => {
+        if (!likedPostIds.has(postId)) {
+            toggleLike(postId);
         }
+        setHeartBurstPostId(postId);
+        setTimeout(() => {
+            setHeartBurstPostId(null);
+        }, 850);
+    };
 
-        try {
-            // Mise à jour optimiste instantanée
-            setDisplayedPosts((prev) =>
-                prev.map((p) =>
-                    p.id === postId ? { ...p, likeCount: p.likeCount + 1 } : p
-                )
-            );
+    // Bookmark / Sauvegarder
+    const toggleSave = (postId: string) => {
+        const isSaved = savedPostIds.has(postId);
+        setSavedPostIds((prev) => {
+            const next = new Set(prev);
+            if (isSaved) next.delete(postId);
+            else next.add(postId);
+            return next;
+        });
+        showToast(isSaved ? "Publication retirée de vos favoris" : "Publication enregistrée dans vos favoris !");
+    };
 
-            await fetch(`${API_URL}/posts/${postId}/like`, {
+    // Partager
+    const handleShare = (post: Post) => {
+        navigator.clipboard?.writeText(window.location.href);
+        showToast("Lien de la publication copié dans le presse-papier !");
+    };
+
+    // Ajouter un commentaire
+    const handleAddComment = (postId: string) => {
+        const text = (commentInputs[postId] || "").trim();
+        if (!text) return;
+
+        const newComment: CommentItem = {
+            id: `c_${Date.now()}`,
+            content: text,
+            authorName: user?.username || "moi",
+            createdAt: "À l'instant",
+        };
+
+        setDisplayedPosts((prev) =>
+            prev.map((p) => {
+                if (p.id === postId) {
+                    return {
+                        ...p,
+                        commentCount: p.commentCount + 1,
+                        comments: [...(p.comments || []), newComment],
+                    };
+                }
+                return p;
+            })
+        );
+
+        setCommentInputs((prev) => ({ ...prev, [postId]: "" }));
+        showToast("Commentaire publié !");
+
+        if (token && isDbConnected) {
+            fetch(`${API_URL}/posts/${postId}/comments`, {
                 method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-            });
-        } catch (err) {
-            console.error("Erreur lors du like :", err);
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ content: text }),
+            }).catch(() => {});
         }
+    };
+
+    // Rendu stylisé du texte avec hashtags et mentions colorés
+    const renderFormattedText = (text: string) => {
+        const words = text.split(" ");
+        return words.map((word, i) => {
+            if (word.startsWith("#")) {
+                return (
+                    <span key={i} className="post-hashtag">
+                        {word}{" "}
+                    </span>
+                );
+            }
+            if (word.startsWith("@")) {
+                return (
+                    <span key={i} className="text-violet-400 font-bold hover:underline cursor-pointer">
+                        {word}{" "}
+                    </span>
+                );
+            }
+            return word + " ";
+        });
     };
 
     return (
-        <div className="max-w-xl mx-auto py-8 px-4 font-sans antialiased text-gray-900">
-            {/* Entête du feed */}
-            <header className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
-                <div>
-                    <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-                        <span>Kilogram</span>
-                        <span className="text-xs font-semibold px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                            Feed
-                        </span>
-                    </h1>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                        {allPosts.length > 0
-                            ? `Fil d'actualité • ${allPosts.length} posts disponibles`
-                            : "Fil d'actualité"}
-                    </p>
+        <div className="feed-container pb-12 font-sans antialiased text-[var(--text-main)]">
+            {/* Barre de statut du Backend */}
+            <div className="status-banner">
+                <div className="status-indicator">
+                    <span className={`status-dot ${isDbConnected ? "connected" : "offline"}`} />
+                    <span className="status-text">
+                        {isDbConnected
+                            ? "Flux en direct connecté (SQLite sur port 3000)"
+                            : "Mode démo interactif (Lancez le backend pour synchroniser en direct)"}
+                    </span>
                 </div>
                 <button
                     onClick={() => fetchPosts(true)}
                     disabled={loading || refreshing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-lg transition disabled:opacity-50"
-                    title="Actualiser la liste sans recharger la page"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-400 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/20 rounded-xl transition disabled:opacity-50"
+                    title="Actualiser le flux"
                 >
                     <span className={refreshing ? "animate-spin" : ""}>🔄</span>
                     <span>{refreshing ? "Mise à jour..." : "Actualiser"}</span>
                 </button>
-            </header>
+            </div>
 
-            {/* Formulaire nouveau post (S4) */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-5 mb-8 transition hover:border-gray-300">
-                <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                        <span>✏️</span>
-                        <span>Créer une publication</span>
-                    </h2>
-                    {/* Compteur dynamique de caractères */}
-                    <span
-                        className={`text-xs font-mono font-medium ${
-                            content.length > MAX_CONTENT_LENGTH
-                                ? "text-red-500 font-bold"
-                                : content.length > MAX_CONTENT_LENGTH * 0.8
-                                ? "text-amber-500"
-                                : "text-gray-400"
-                        }`}
-                    >
-                        {content.length} / {MAX_CONTENT_LENGTH}
-                    </span>
+            {/* Composeur de publication premium */}
+            <div className="feed-composer-card">
+                <div className="composer-top-row">
+                    <div className="composer-avatar">
+                        {(user?.username || "M").charAt(0).toUpperCase()}
+                    </div>
+                    <textarea
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        placeholder={`Quoi de neuf ${user?.username ? `@${user.username}` : ""} aujourd'hui ? Partagez un moment...`}
+                        rows={3}
+                        className="composer-textarea focus:outline-none"
+                    />
                 </div>
 
-                {/* Affichage des erreurs API ou de fichier (Formulaire non perdu) */}
-                {(submitError || fileError) && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                            <span>⚠️</span>
-                            <span>{submitError || fileError}</span>
-                        </div>
+                {/* Aperçu image avant publication */}
+                {imagePreview && (
+                    <div className="relative mt-3 rounded-xl overflow-hidden border border-[var(--border-color)] max-h-60 bg-black/40 flex items-center justify-center">
+                        <img
+                            src={imagePreview}
+                            alt="Aperçu"
+                            className="max-h-60 w-auto object-cover rounded-xl"
+                        />
                         <button
                             type="button"
-                            onClick={() => {
-                                setSubmitError(null);
-                                setFileError(null);
-                            }}
-                            className="text-red-500 hover:text-red-700 font-bold text-sm leading-none"
-                            title="Fermer le message d'erreur"
+                            onClick={handleRemoveImage}
+                            className="absolute top-2.5 right-2.5 p-1.5 bg-black/75 text-white rounded-full text-xs hover:bg-red-600 transition"
+                            title="Supprimer la photo"
                         >
                             ✕
                         </button>
                     </div>
                 )}
 
-                <form onSubmit={handleCreatePost} className="space-y-4">
-                    <div>
-                        <textarea
-                            value={content}
-                            onChange={(e) => {
-                                setContent(e.target.value);
-                                if (submitError) setSubmitError(null);
-                            }}
-                            placeholder="Quoi de neuf aujourd'hui ?"
-                            rows={3}
-                            disabled={submitting}
-                            className={`w-full resize-none p-3.5 border rounded-xl focus:outline-none focus:ring-2 text-sm placeholder-gray-400 transition ${
-                                content.length > MAX_CONTENT_LENGTH
-                                    ? "border-red-400 bg-red-50/30 focus:ring-red-500/20 focus:border-red-500"
-                                    : "border-gray-200 bg-gray-50/50 focus:bg-white focus:ring-purple-500/20 focus:border-purple-500"
-                            }`}
-                        />
-                    </div>
-
-                    {/* Miniature de prévisualisation de l'image sélectionnée avant envoi */}
-                    {imagePreview && (
-                        <div className="relative inline-block group rounded-xl overflow-hidden border border-gray-200 bg-gray-50 max-h-56">
-                            <img
-                                src={imagePreview}
-                                alt="Prévisualisation avant envoi"
-                                className="max-h-56 w-auto object-cover rounded-xl"
-                            />
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <button
-                                    type="button"
-                                    onClick={handleRemoveImage}
-                                    disabled={submitting}
-                                    className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-medium shadow-sm transition flex items-center gap-1"
-                                >
-                                    <span>✕</span>
-                                    <span>Retirer l'image</span>
-                                </button>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={handleRemoveImage}
-                                disabled={submitting}
-                                className="sm:hidden absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full text-xs"
-                                aria-label="Retirer l'image"
-                            >
-                                ✕
-                            </button>
-                            {imageFile && (
-                                <span className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/60 text-white text-[10px] rounded-md font-mono">
-                                    {(imageFile.size / (1024 * 1024)).toFixed(2)} Mo
-                                </span>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-                        <label className={`flex items-center gap-2 text-xs text-gray-600 hover:text-purple-600 transition ${submitting ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}>
-                            <span className="p-1.5 bg-gray-100 rounded-lg text-base">📷</span>
-                            <span className="truncate max-w-[220px] font-medium">
-                                {imageFile ? imageFile.name : "Ajouter une photo (JPG, PNG, WEBP, GIF)"}
-                            </span>
+                {/* Barre d'outils et bouton Publier */}
+                <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        {/* Bouton photo */}
+                        <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-input)] hover:text-[var(--orange-500)] border border-[var(--border-color)] cursor-pointer transition">
+                            <span>📸</span>
+                            <span>{imageFile ? "Image ajoutée" : "Photo"}</span>
                             <input
                                 ref={fileInputRef}
                                 type="file"
                                 accept="image/jpeg,image/png,image/webp,image/gif"
                                 onChange={handleImageChange}
-                                disabled={submitting}
                                 className="hidden"
                             />
                         </label>
 
-                        <button
-                            type="submit"
-                            disabled={
-                                submitting ||
-                                !content.trim() ||
-                                content.length > MAX_CONTENT_LENGTH ||
-                                !!fileError
-                            }
-                            className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl text-sm font-medium hover:opacity-95 disabled:opacity-40 transition shadow-sm flex items-center justify-center gap-2"
+                        {/* Raccourcis émojis rapides */}
+                        <div className="hidden sm:flex items-center gap-1 bg-[var(--bg-input)] px-2 py-1 rounded-lg border border-[var(--border-subtle)]">
+                            {["🌅", "🔥", "✨", "☕", "🏔️"].map((em) => (
+                                <button
+                                    key={em}
+                                    type="button"
+                                    onClick={() => insertEmoji(em)}
+                                    className="hover:scale-125 transition px-1 text-sm"
+                                >
+                                    {em}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {/* Compteur circulaire / caractères */}
+                        <span
+                            className={`text-xs font-mono font-semibold ${
+                                content.length > MAX_CONTENT_LENGTH
+                                    ? "text-red-500"
+                                    : content.length > MAX_CONTENT_LENGTH * 0.8
+                                    ? "text-orange-400"
+                                    : "text-[var(--text-dim)]"
+                            }`}
                         >
-                            {submitting ? (
-                                <>
-                                    <span className="animate-spin text-base">⏳</span>
-                                    <span>Publication en cours...</span>
-                                </>
-                            ) : (
-                                <span>Publier</span>
-                            )}
+                            {content.length}/{MAX_CONTENT_LENGTH}
+                        </span>
+
+                        <button
+                            type="button"
+                            onClick={handleCreatePost}
+                            disabled={submitting || !content.trim() || content.length > MAX_CONTENT_LENGTH}
+                            className="btn-primary-gradient text-xs font-bold px-5 py-2 disabled:opacity-40"
+                        >
+                            {submitting ? "Publication..." : "Publier"}
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
 
-            {/* ======================================================== */}
-            {/* GESTION DES 4 ÉTATS UI                                    */}
-            {/* ======================================================== */}
-
-            {/* ÉTAT 1 : Chargement Initial (Skeleton Loader) */}
-            {loading && (
-                <div className="space-y-6" aria-busy="true" aria-label="Chargement des publications">
-                    {[1, 2, 3].map((n) => (
-                        <div
-                            key={n}
-                            className="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-4 space-y-4 animate-pulse"
-                        >
-                            <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 bg-gray-200 rounded-full" />
-                                <div className="space-y-2 flex-1">
-                                    <div className="h-3.5 bg-gray-200 rounded-md w-1/3" />
-                                    <div className="h-2.5 bg-gray-100 rounded-md w-1/5" />
-                                </div>
-                            </div>
-                            <div className="w-full h-56 bg-gray-200 rounded-xl" />
-                            <div className="space-y-2">
-                                <div className="h-3 bg-gray-200 rounded-md w-4/5" />
-                                <div className="h-3 bg-gray-100 rounded-md w-2/3" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* ÉTAT 2 : Erreur */}
-            {!loading && error && (
-                <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-700 space-y-3">
-                    <div className="text-3xl">⚠️</div>
-                    <h3 className="font-semibold text-base">Impossible de charger les posts</h3>
-                    <p className="text-sm text-red-600 max-w-sm mx-auto">{error}</p>
+            {/* 3. Filtres du flux */}
+            <div className="flex items-center justify-between gap-3 px-1">
+                <div className="flex items-center gap-2">
                     <button
-                        onClick={() => fetchPosts()}
-                        className="mt-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-xl hover:bg-red-700 transition"
+                        type="button"
+                        onClick={() => setFilterMode("all")}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                            filterMode === "all"
+                                ? "bg-[var(--brand-gradient)] text-white shadow-sm"
+                                : "bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                        }`}
                     >
-                        Réessayer
+                        ✨ Tous les posts ({allPosts.length})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFilterMode("trending")}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                            filterMode === "trending"
+                                ? "bg-[var(--brand-gradient)] text-white shadow-sm"
+                                : "bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                        }`}
+                    >
+                        🔥 Populaires
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setFilterMode("photos")}
+                        className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+                            filterMode === "photos"
+                                ? "bg-[var(--brand-gradient)] text-white shadow-sm"
+                                : "bg-[var(--bg-input)] text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                        }`}
+                    >
+                        📸 Photos uniquement
                     </button>
                 </div>
-            )}
+            </div>
 
-            {/* ÉTAT 3 : Liste Vide */}
-            {!loading && !error && allPosts.length === 0 && (
-                <div className="bg-white border border-dashed border-gray-300 rounded-2xl p-12 text-center text-gray-500 space-y-3">
-                    <div className="text-4xl">📭</div>
-                    <h3 className="text-base font-semibold text-gray-800">Aucun post pour le moment</h3>
-                    <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                        Le fil est vide. Soyez le tout premier à publier un message ou une photo !
-                    </p>
+            {/* 4. Liste des Publications Sociales */}
+            <div className="space-y-6">
+                        {filteredPosts.map((post) => {
+                            const rawImg = post.imageUrl;
+                            const imageSrc = rawImg
+                                ? rawImg.startsWith("http")
+                                    ? rawImg
+                                    : `${API_URL}${rawImg}`
+                                : null;
+
+                            const isLiked = likedPostIds.has(post.id);
+                            const isSaved = savedPostIds.has(post.id);
+                            const isCommentsOpen = activeCommentPostId === post.id;
+                            const isBursting = heartBurstPostId === post.id;
+
+                            const authorUsername = post.author?.username || "Anonyme";
+                            const authorLetter = authorUsername.charAt(0).toUpperCase();
+
+                            return (
+                                <article key={post.id} className="feed-card">
+                                    {/* En-tête de la carte */}
+                                    <div className="feed-card-header">
+                                        <div className="feed-author-meta">
+                                            <div className="feed-author-avatar-ring">
+                                                <div className="feed-author-avatar">
+                                                    {authorLetter}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="feed-author-name">@{authorUsername}</span>
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                                                        Membre
+                                                    </span>
+                                                </div>
+                                                <span className="feed-author-time">
+                                                    {formatDateRelative(post.created_at)}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => handleShare(post)}
+                                            className="text-xs text-[var(--text-dim)] hover:text-[var(--orange-500)] p-1.5 rounded-lg"
+                                            title="Partager le post"
+                                        >
+                                            🔗 Partager
+                                        </button>
+                                    </div>
+
+                                    {/* Image avec double-clic pour liker */}
+                                    {imageSrc && (
+                                        <div
+                                            className="feed-img-box"
+                                            onDoubleClick={() => handleDoubleTapPhoto(post.id)}
+                                            onClick={() => setZoomImage({ src: imageSrc, caption: post.content })}
+                                            title="Double-cliquez pour liker, simple clic pour agrandir"
+                                        >
+                                            <img
+                                                src={imageSrc}
+                                                alt={post.content}
+                                                className="feed-img"
+                                                loading="lazy"
+                                                onError={(e) => {
+                                                    (e.target as HTMLElement).style.display = "none";
+                                                }}
+                                            />
+
+                                            {/* Animation pop-up du coeur lors du double-clic */}
+                                            {isBursting && (
+                                                <div className="heart-burst-overlay">
+                                                    <span className="heart-burst-icon">❤️</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Contenu textuel avec hashtags mis en valeur */}
+                                    {post.content && (
+                                        <div className="px-5 py-4">
+                                            <p className="text-[15px] leading-relaxed text-[var(--text-main)]">
+                                                {renderFormattedText(post.content)}
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Barre d'action sociale */}
+                                    <div className="feed-action-bar">
+                                        <div className="feed-action-group">
+                                            {/* Like */}
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleLike(post.id)}
+                                                className={`feed-action-btn ${isLiked ? "liked" : ""}`}
+                                                title="Aimer cette publication"
+                                            >
+                                                <span className="text-base">{isLiked ? "❤️" : "🤍"}</span>
+                                                <span>{post.likeCount}</span>
+                                            </button>
+
+                                            {/* Commentaires */}
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setActiveCommentPostId(isCommentsOpen ? null : post.id)
+                                                }
+                                                className="feed-action-btn"
+                                                title="Commenter"
+                                            >
+                                                <span className="text-base">💬</span>
+                                                <span>{post.commentCount}</span>
+                                            </button>
+                                        </div>
+
+                                        {/* Sauvegarde favori */}
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleSave(post.id)}
+                                            className={`feed-action-btn ${isSaved ? "saved" : ""}`}
+                                            title="Enregistrer"
+                                        >
+                                            <span className="text-base">{isSaved ? "🔖" : "📑"}</span>
+                                            <span>{isSaved ? "Enregistré" : "Enregistrer"}</span>
+                                        </button>
+                                    </div>
+
+                                    {/* Tiroir de commentaires */}
+                                    {isCommentsOpen && (
+                                        <div className="comments-drawer">
+                                            <div className="comments-list">
+                                                {(post.comments && post.comments.length > 0) ? (
+                                                    post.comments.map((c) => (
+                                                        <div key={c.id} className="comment-bubble">
+                                                            <div>
+                                                                <span className="comment-user">@{c.authorName}</span>
+                                                                <span className="text-[var(--text-main)]">{c.content}</span>
+                                                                <span className="text-[10px] text-[var(--text-dim)] ml-2">
+                                                                    {c.createdAt}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-xs text-[var(--text-dim)] py-2 text-center">
+                                                        Soyez le premier à commenter cette publication !
+                                                    </p>
+                                                )}
+                                            </div>
+
+                                            {/* Champ d'ajout de commentaire */}
+                                            <div className="comment-input-row">
+                                                <input
+                                                    type="text"
+                                                    value={commentInputs[post.id] || ""}
+                                                    onChange={(e) =>
+                                                        setCommentInputs((prev) => ({
+                                                            ...prev,
+                                                            [post.id]: e.target.value,
+                                                        }))
+                                                    }
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter") handleAddComment(post.id);
+                                                    }}
+                                                    placeholder="Ajouter un commentaire..."
+                                                    className="comment-input-field"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAddComment(post.id)}
+                                                    className="comment-send-btn"
+                                                >
+                                                    Envoyer
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </article>
+                            );
+                        })}
+
+                        {/* Sentinelle pour le lazy loading infini */}
+                        <div ref={sentinelRef} className="h-6" />
+
+                        {loadingMore && (
+                            <div className="py-4 text-center">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--bg-card)] rounded-full border border-[var(--border-color)] text-xs font-semibold text-[var(--text-muted)] animate-pulse shadow-sm">
+                                    <span className="animate-spin">⏳</span>
+                                    <span>Chargement de nouveaux posts...</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {!hasMore && allPosts.length > 0 && (
+                            <div className="py-8 text-center text-xs text-[var(--text-dim)] border-t border-[var(--border-color)]">
+                                ✨ Vous avez atteint la fin du fil d'actualité ({allPosts.length} posts)
+                            </div>
+                        )}
+                    </div>
+
+            {/* Modal d'agrandissement d'image */}
+            {zoomImage && (
+                <div
+                    className="modal-backdrop"
+                    onClick={() => setZoomImage(null)}
+                    role="dialog"
+                    aria-modal="true"
+                >
+                    <div
+                        className="modal-container max-w-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="relative bg-black flex items-center justify-center max-h-[80vh]">
+                            <img
+                                src={zoomImage.src}
+                                alt={zoomImage.caption}
+                                className="max-h-[80vh] w-auto object-contain"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setZoomImage(null)}
+                                className="absolute top-3 right-3 p-2 bg-black/70 text-white rounded-full text-sm hover:bg-red-600 transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        {zoomImage.caption && (
+                            <div className="p-4 bg-[var(--bg-elevated)] border-t border-[var(--border-color)]">
+                                <p className="text-sm text-[var(--text-main)]">{zoomImage.caption}</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
-            {/* ÉTAT 4 : Succès avec Liste de Posts (Tri décroissant & Pagination fluide) */}
-            {!loading && !error && displayedPosts.length > 0 && (
-                <div className="space-y-6">
-                    {displayedPosts.map((post) => {
-                        const rawImageUrl = post.imageUrl;
-                        const imageUrl = rawImageUrl
-                            ? rawImageUrl.startsWith("http")
-                                ? rawImageUrl
-                                : `${API_URL}${rawImageUrl}`
-                            : null;
-
-                        const authorName = post.author?.username || "Anonyme";
-                        const initialLetter = authorName.charAt(0).toUpperCase() || "U";
-
-                        return (
-                            <article
-                                key={post.id}
-                                className="bg-white rounded-2xl shadow-sm border border-gray-200/80 overflow-hidden transition hover:shadow-md"
-                            >
-                                {/* Entête du post : Auteur et Date */}
-                                <div className="p-4 flex items-center justify-between">
-                                    <div className="flex items-center space-x-3">
-                                        <div
-                                            className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-sm"
-                                            aria-hidden="true"
-                                        >
-                                            {initialLetter}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900 text-sm leading-tight">
-                                                {authorName}
-                                            </p>
-                                            <p
-                                                className="text-xs text-gray-400 cursor-default"
-                                                title={formatDateFull(post.created_at)}
-                                            >
-                                                {formatDateRelative(post.created_at)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <span className="text-xs text-gray-400 font-mono">
-                                        #{post.id.slice(-4)}
-                                    </span>
-                                </div>
-
-                                {/* Image du post */}
-                                {imageUrl && (
-                                    <div className="w-full bg-gray-100 max-h-[520px] flex items-center justify-center overflow-hidden border-y border-gray-100">
-                                        <img
-                                            src={imageUrl}
-                                            alt={`Publication de ${authorName}`}
-                                            className="w-full h-auto object-cover max-h-[520px]"
-                                            loading="lazy"
-                                            onError={(e) => {
-                                                // Masque proprement si l'image distante est introuvable
-                                                (e.target as HTMLElement).style.display = "none";
-                                            }}
-                                        />
-                                    </div>
-                                )}
-
-                                {/* Contenu textuel */}
-                                {post.content && (
-                                    <div className="p-4 pt-3.5">
-                                        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">
-                                            {post.content}
-                                        </p>
-                                    </div>
-                                )}
-
-                                {/* Actions : Likes et Commentaires */}
-                                <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100 flex items-center justify-between text-gray-600 text-sm">
-                                    <div className="flex items-center space-x-6">
-                                        <button
-                                            onClick={() => handleLike(post.id)}
-                                            className="group flex items-center space-x-1.5 hover:text-red-500 transition active:scale-95"
-                                            title="Aimer ce post"
-                                        >
-                                            <span className="group-hover:scale-110 transition">❤️</span>
-                                            <span className="font-medium text-xs sm:text-sm">
-                                                {post.likeCount}
-                                            </span>
-                                        </button>
-                                        <div
-                                            className="flex items-center space-x-1.5 text-gray-500"
-                                            title="Commentaires"
-                                        >
-                                            <span>💬</span>
-                                            <span className="font-medium text-xs sm:text-sm">
-                                                {post.commentCount}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <span className="text-[11px] text-gray-400">
-                                        {formatDateFull(post.created_at)}
-                                    </span>
-                                </div>
-                            </article>
-                        );
-                    })}
-
-                    {/* Zone de sentinelle pour le lazy loading automatique */}
-                    <div ref={sentinelRef} className="h-4" />
-
-                    {/* Indicateur pendant le chargement de la page suivante (ne fait PAS clignoter la liste) */}
-                    {loadingMore && (
-                        <div className="py-4 text-center">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border border-gray-200 shadow-sm text-xs font-medium text-gray-600 animate-pulse">
-                                <span className="animate-spin">⏳</span>
-                                <span>Chargement des posts suivants...</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Bouton manuel "Charger plus" si l'utilisateur souhaite cliquer */}
-                    {hasMore && !loadingMore && (
-                        <div className="pt-2 text-center">
-                            <button
-                                onClick={loadNextPage}
-                                className="px-5 py-2.5 bg-white border border-gray-300 hover:border-purple-400 hover:text-purple-600 rounded-xl text-sm font-medium text-gray-700 shadow-sm transition active:scale-95"
-                            >
-                                Charger plus de posts ({allPosts.length - displayedPosts.length} restants)
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Indicateur de fin de liste */}
-                    {!hasMore && allPosts.length > 0 && (
-                        <div className="py-8 text-center text-xs text-gray-400 border-t border-gray-200/60 mt-8">
-                            ✨ Vous avez parcouru la totalité des {allPosts.length} posts !
-                        </div>
-                    )}
+            {/* Toast flottant de notification */}
+            {toastMessage && (
+                <div className="toast-float">
+                    <span>✨</span>
+                    <span>{toastMessage}</span>
                 </div>
             )}
         </div>

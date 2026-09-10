@@ -24,65 +24,60 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
 
   return (
     <>
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <nav className="site-navbar">
+        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           {/* Brand & Tab Navigation */}
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 font-black text-gray-900 text-lg tracking-tight">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
-                Kilogram
-              </span>
+            <div
+              className="flex items-center gap-2 cursor-pointer select-none"
+              onClick={() => onTabChange('feed')}
+            >
+              <span className="brand-gradient-text">Kilogram</span>
             </div>
 
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
+            {/* Sélecteur d'onglets au style Orange & Violet */}
+            <div className="nav-tabs-pill">
               <button
                 type="button"
                 onClick={() => onTabChange('feed')}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-                  currentTab === 'feed'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`nav-tab-btn ${currentTab === 'feed' ? 'active' : ''}`}
               >
-                Feed
+                Fil d'actualité
               </button>
               <button
                 type="button"
                 onClick={() => onTabChange('profile')}
-                className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-                  currentTab === 'profile'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`nav-tab-btn ${currentTab === 'profile' ? 'active' : ''}`}
               >
                 Profil
               </button>
             </div>
           </div>
 
-          {/* Right Action Items */}
+          {/* Actions à droite : Thème et Authentification */}
           <div className="flex items-center gap-3">
-            {/* Theme Toggle Button */}
+            {/* Bouton de bascule de Thème (Clair / Sombre) */}
             <button
               type="button"
               onClick={onToggleTheme}
-              className="text-xs font-medium text-gray-600 hover:text-gray-900 px-2.5 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+              className="theme-toggle-btn"
               title={isDarkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
               aria-label="Basculer le thème"
             >
-              {isDarkMode ? 'Mode Clair' : 'Mode Sombre'}
+              <span>{isDarkMode ? '☀️' : '🌙'}</span>
+              <span>{isDarkMode ? 'Clair' : 'Sombre'}</span>
             </button>
 
-            {/* Authentication Buttons / User Badge */}
+            {/* Authentification */}
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
-                <span className="text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-1 rounded-full border border-gray-200">
-                  {user.username}
+                <span className="text-xs font-semibold px-3 py-1 rounded-full border border-[var(--border-color)] bg-[var(--bg-input)] text-[var(--text-main)]">
+                  @{user.username}
                 </span>
                 <button
                   type="button"
                   onClick={logout}
-                  className="text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition"
+                  className="text-xs font-semibold text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/20 transition"
                 >
                   Déconnexion
                 </button>
@@ -92,14 +87,14 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
                 <button
                   type="button"
                   onClick={() => openAuth('login')}
-                  className="text-xs font-semibold text-gray-700 hover:text-purple-600 px-3 py-1.5 rounded-lg transition"
+                  className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] px-3 py-1.5 rounded-lg transition"
                 >
                   Connexion
                 </button>
                 <button
                   type="button"
                   onClick={() => openAuth('register')}
-                  className="text-xs font-semibold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 px-3.5 py-1.5 rounded-lg shadow-sm transition"
+                  className="btn-primary-gradient text-xs font-semibold"
                 >
                   Inscription
                 </button>
@@ -121,21 +116,25 @@ function HeaderNav({ currentTab, onTabChange, isDarkMode, onToggleTheme }: Heade
 
 function AppContent() {
   const [currentTab, setCurrentTab] = useState<'feed' | 'profile'>('feed');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('kilogram-theme');
+    return saved ? saved === 'dark' : true;
+  });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('kilogram-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <HeaderNav
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
       />
-      <main className="app-main">
+      <main className="py-6 px-4">
         {currentTab === 'feed' ? <PostsPages /> : <ProfileView />}
       </main>
     </div>

@@ -136,8 +136,10 @@ export const ProfileView: React.FC = () => {
         <>
           {/* En-tête du profil */}
           <header className="profile-card-header">
-            <div className="profile-avatar">
-              {userProfile.username.charAt(0).toUpperCase()}
+            <div className="profile-avatar-wrapper">
+              <div className="profile-avatar">
+                {userProfile.username.charAt(0).toUpperCase()}
+              </div>
             </div>
 
             <div className="profile-header-info">

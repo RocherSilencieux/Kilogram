@@ -1,13 +1,4 @@
 {
-  "name": "kilogram-root",
-  "private": true,
-  "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "npm --prefix backend run dev",
-    "seed": "npm --prefix backend run seed",
-    "test": "npm --prefix frontend run test"
-  },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "express-rate-limit": "^8.7.0",

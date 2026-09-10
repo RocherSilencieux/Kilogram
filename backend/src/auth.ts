@@ -4,12 +4,8 @@ import { Request, Response, NextFunction } from "express";
 const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-change-me";
 
 // generate a token for a user, no expiration
-// added an expiration date and the server can't start if JWT_SECRET insn't defined
 export function generateToken(userId: string, role: string): string {
-  if (!process.env.JWT_SECRET){
-    throw new Error("JWT_SECRET is not defined in this environment")
-  }
-  return jwt.sign({ userId, role }, JWT_SECRET,{ expiresIn:"7d"});
+  return jwt.sign({ userId, role }, JWT_SECRET, { expiresIn: "7d" });
 }
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {

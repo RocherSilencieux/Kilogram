@@ -61,8 +61,8 @@ function HeaderNav({
 
           {/* Logo — titre du cahier */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <button className="brand-sketch-text" onClick={onNavigateToFeed} aria-label="Kilogram — Accueil">
-              Kilogram ✏️
+            <button className="brand-sketch-text" onClick={onNavigateToFeed} aria-label="Post it — Accueil">
+              Post it ✏️
             </button>
 
             {/* Onglets */}

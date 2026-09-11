@@ -15,7 +15,7 @@ const FALLBACK_USERS: Record<string, { profile: UserProfile; posts: UserPost[] }
     posts: [
       {
         id: 'post_alice_1',
-        content: 'Bienvenue sur mon profil Kilogram ! Premier coucher de soleil capturé en vacances 🌅',
+        content: 'Bienvenue sur mon profil Post it ! Premier coucher de soleil capturé en vacances 🌅',
         imageUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
         authorId: 'user_alice_01',
         createdAt: '2026-09-08T14:30:00.000Z',
@@ -82,7 +82,7 @@ const FALLBACK_USERS: Record<string, { profile: UserProfile; posts: UserPost[] }
     posts: [
       {
         id: 'post_admin_1',
-        content: 'Bienvenue sur Kilogram. Les serveurs sont opérationnels.',
+        content: 'Bienvenue sur Post it. Les serveurs sont opérationnels.',
         imageUrl: null,
         authorId: 'user_admin_03',
         createdAt: '2026-09-05T09:00:00.000Z',

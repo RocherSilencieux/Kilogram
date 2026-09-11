@@ -318,9 +318,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ userId }) => {
         setUserProfile({
           id: targetUserId,
           username: cleanName || 'utilisateur',
-          email: `${cleanName || 'user'}@kilogram.app`,
+          email: `${cleanName || 'user'}@postit.app`,
           role: cleanName === 'admin' ? 'ADMIN' : 'USER',
-          bio: 'Esquisseur passionné dans le carnet Kilogram ✏️',
+          bio: 'Esquisseur passionné dans le carnet Post it ✏️',
           createdAt: new Date().toISOString(),
         });
         setIsBackendConnected(false);

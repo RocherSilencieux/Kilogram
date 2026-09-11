@@ -21,7 +21,7 @@ export interface Post {
 export const DEMO_FEED_POSTS: Post[] = [
     {
         id: "demo_post_1",
-        content: "Magnifique coucher de soleil dessiné au crayon ce soir ! Les reflets hachurés sont magiques. ✏️🌅 #SketchVibes #Kilogram #OmoriStyle",
+        content: "Magnifique coucher de soleil dessiné au crayon ce soir ! Les reflets hachurés sont magiques. ✏️🌅 #SketchVibes #PostIt #OmoriStyle",
         imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80",
         created_at: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
         author: { id: "user_alice", username: "alice" },
@@ -54,7 +54,7 @@ export const DEMO_FEED_POSTS: Post[] = [
     },
     {
         id: "demo_post_4",
-        content: "Bienvenue à tous sur Kilogram ! Nouveau design Carnet de Croquis inspiré d'OMORI. Venez gribouillez vos moments ! ✏️🖤 #Omori #Kilogram2026",
+        content: "Bienvenue à tous sur Post it ! Nouveau design Carnet de Croquis inspiré d'OMORI. Venez gribouillez vos moments ! ✏️🖤 #Omori #PostIt2026",
         imageUrl: null,
         created_at: new Date(Date.now() - 1000 * 60 * 60 * 22).toISOString(),
         author: { id: "user_admin", username: "admin" },

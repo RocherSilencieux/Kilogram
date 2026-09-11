@@ -11,6 +11,6 @@
     "@tailwindcss/vite": "^4.3.3",
     "express-rate-limit": "^8.7.0",
     "tailwindcss": "^4.3.3",
-    "zod": "^4.5.4"
+    "zod": "^4.6.2"
   }
 }

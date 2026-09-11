@@ -132,12 +132,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="p-6 space-y-4">
           <div>
             <h2 className="text-2xl font-black font-hand text-[var(--text-main)] mb-1">
-              {mode === "login" ? "Bienvenue sur Kilogram ✏️" : "Créer votre fiche"}
+              {mode === "login" ? "Bienvenue sur Post it ✏️" : "Créer votre fiche"}
             </h2>
             <p className="text-xs font-hand font-bold text-[var(--text-dim)]">
               {mode === "login"
                 ? "Connectez-vous pour publier et liker des croquis."
-                : "Rejoignez le carnet de croquis Kilogram en quelques secondes."}
+                : "Rejoignez le carnet de croquis Post it en quelques secondes."}
             </p>
           </div>
 

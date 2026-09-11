@@ -107,7 +107,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
     } catch {}
 
     if (!loadedPost && !notFoundError) {
-      const demoMatch = DEMO_FEED_POSTS.find((p) => p.id === postId);
+      const demoMatch = DEMO_FEED_POSTS.find((p: Post) => p.id === postId);
       if (demoMatch) {
         loadedPost = demoMatch;
       } else if (postId.startsWith("post_local_")) {
@@ -127,7 +127,19 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
     } else if (loadedPost) {
       setPost(loadedPost);
       setComments(loadedPost.comments || []);
-      setLikeCount(loadedPost.likeCount || 0);
+
+      let isLikedLocal = false;
+      try {
+        const stored = localStorage.getItem("kilogram_liked_posts");
+        if (stored) {
+          const arr: string[] = JSON.parse(stored);
+          if (arr.includes(postId)) isLikedLocal = true;
+        }
+      } catch {}
+
+      const finalIsLiked = Boolean(loadedPost.isLiked) || isLikedLocal;
+      setIsLiked(finalIsLiked);
+      setLikeCount((loadedPost.likeCount || 0) + (isLikedLocal && !loadedPost.isLiked ? 1 : 0));
     } else {
       setError("Impossible de charger le croquis. Vérifiez votre connexion.");
     }
@@ -147,7 +159,7 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
       createdAt: "à l'instant",
     };
     setComments((prev) => [...prev, newComment]);
-    setPost((prev) => prev ? { ...prev, commentCount: prev.commentCount + 1 } : prev);
+    setPost((prev: Post | null) => prev ? { ...prev, commentCount: prev.commentCount + 1 } : prev);
     setCommentInput("");
     showToast("Note gribouillée ! ✏️");
 
@@ -171,11 +183,21 @@ export const PostDetailView: React.FC<PostDetailViewProps> = ({ postId, onBack, 
   };
 
   const toggleLike = () => {
-    setIsLiked((prev) => !prev);
-    setLikeCount((prev) => isLiked ? Math.max(0, prev - 1) : prev + 1);
+    const willBeLiked = !isLiked;
+    setIsLiked(willBeLiked);
+    setLikeCount((prev) => (willBeLiked ? prev + 1 : Math.max(0, prev - 1)));
+
+    try {
+      const stored = localStorage.getItem("kilogram_liked_posts");
+      const set = new Set<string>(stored ? JSON.parse(stored) : []);
+      if (willBeLiked) set.add(postId);
+      else set.delete(postId);
+      localStorage.setItem("kilogram_liked_posts", JSON.stringify(Array.from(set)));
+    } catch {}
+
     if (token) {
       fetch(`${API_URL}/posts/${postId}/like`, {
-        method: isLiked ? "DELETE" : "POST",
+        method: willBeLiked ? "POST" : "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       }).catch(() => {});
     }

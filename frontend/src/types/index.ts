@@ -30,3 +30,27 @@ export interface SearchProfileItem {
   role?: string;
   postCount?: number;
 }
+
+export interface Author {
+  id: string;
+  username: string;
+}
+
+export interface CommentItem {
+  id: string;
+  content: string;
+  authorName: string;
+  createdAt: string;
+}
+
+export interface Post {
+  id: string;
+  content: string;
+  imageUrl: string | null;
+  created_at: string;
+  author: Author | null;
+  likeCount: number;
+  commentCount: number;
+  comments?: CommentItem[];
+  isLiked?: boolean;
+}

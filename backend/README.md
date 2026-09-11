@@ -1,9 +1,27 @@
-# Backend
+# Kilogram Backend ⚙️
 
-```
+Serveur Express + TypeScript + Prisma.
+
+## 🚀 Démarrage
+
+```bash
+# 1. Configuration de l'environnement
 cp .env.example .env
-npm install && npx prisma migrate dev --name init && npm run seed
+
+# 2. Installation des dépendances, migration DB et seed
+npm install
+npx prisma migrate dev --name init
+npm run seed
+
+# 3. Lancer le serveur de développement (watch mode)
 npm run dev
 ```
 
-Serveur sur `http://localhost:3000`. Comptes de test : `alice@test.com` / `bob@test.com` / `admin@test.com`, mot de passe `password123`.
+Le serveur tourne sur `http://localhost:3000`.
+
+## 🔑 Comptes de test
+
+- `alice@test.com` / `password123`
+- `bob@test.com` / `password123`
+- `admin@test.com` / `password123`
+

@@ -81,3 +81,10 @@
 - Implemented `handleDeletePost` and `handleDeleteComment` in `frontend/src/pages/PostsPages.tsx` with author-only checks, confirmation dialogs (`window.confirm`), and optimistic UI updates without page reloads.
 - Implemented post deletion in `frontend/src/components/profile/ProfileView.tsx` for author profiles.
 - Verified TypeScript compilation (`npx tsc -b`) and production bundle build (`npx vite build` in 357ms) with zero errors.
+
+## [2026-09-11] Frontend Architecture & Code Breakdown Documentation
+
+### Additions & Modifications
+- Created comprehensive architecture explanation file `docs/EXPLANATION_FRONTEND.md` detailing every frontend component, route parser, context provider, API client service, and interactive question callouts for user review.
+- Verified TypeScript compilation (`npx tsc -b`) with zero errors.
+

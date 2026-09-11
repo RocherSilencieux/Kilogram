@@ -24,3 +24,6 @@
   - [x] Implement post and comment deletion with confirmation & optimistic UI update in `frontend/src/pages/PostsPages.tsx`
   - [x] Implement post deletion in `frontend/src/components/profile/ProfileView.tsx`
   - [x] Verify build with `npx tsc -b` and `npx vite build`
+- [x] Create comprehensive frontend explanation file docs/EXPLANATION_FRONTEND.md for user review
+
+
